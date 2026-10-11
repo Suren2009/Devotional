@@ -5,7 +5,7 @@ package com.pradarshana.core.model
  *
  * The counter is a grow-only counter (G-Counter CRDT): every device only ever increases its own
  * entry in [deviceCounts], and replicas merge by taking the per-device maximum. Each local tap is
- * operation `deviceId:sequence`, so re-delivered or duplicated snapshots can never add rounds twice
+ * operation `sessionId:deviceId:sequence`, so re-delivered or duplicated snapshots can never add rounds twice
  * and concurrent taps on both devices are never lost.
  *
  * The status is a last-writer-wins register ordered by ([statusUpdatedAt], [statusUpdatedBy]),

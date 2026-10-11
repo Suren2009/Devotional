@@ -1,0 +1,199 @@
+package com.pradarshana.core.data
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.pradarshana.core.data.db.PradarshanaDatabase
+import com.pradarshana.core.model.CounterRules
+import com.pradarshana.core.model.SessionStatus
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class SessionRepositoryTest {
+
+    private lateinit var context: Context
+    private lateinit var db: PradarshanaDatabase
+    private lateinit var repo: SessionRepository
+    private val clock = TestClock()
+
+    @Before
+    fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
+        db = PradarshanaDatabase.create(context, name = null)
+        repo = SessionRepository(db, "phone-1", clock)
+    }
+
+    @After
+    fun tearDown() {
+        db.close()
+    }
+
+    private suspend fun start(target: Int): String =
+        (repo.startSession(target) as StartResult.Started).sessionId
+
+    @Test
+    fun startingWithValidTargetInitialisesSession() = runTest {
+        val id = start(108)
+        val session = repo.getSession(id)!!
+        assertEquals(108, session.targetCount)
+        assertEquals(0, session.completedCount)
+        assertEquals(108, session.remainingCount)
+        assertEquals(SessionStatus.ACTIVE, session.status)
+        assertEquals(clock.now(), session.startTime)
+        assertEquals(id, repo.observeOngoingSession().first()?.id)
+    }
+
+    @Test
+    fun zeroOrNegativeTargetsAreRejected() = runTest {
+        assertEquals(StartResult.Invalid(CounterRules.TargetValidation.NotPositive), repo.startSession(0))
+        assertEquals(StartResult.Invalid(CounterRules.TargetValidation.NotPositive), repo.startSession(-3))
+        assertNull(repo.getOngoingSession())
+    }
+
+    @Test
+    fun eachIncrementAddsExactlyOne() = runTest {
+        val id = start(108)
+        repeat(27) { repo.increment(id) }
+        val session = repo.getSession(id)!!
+        assertEquals(27, session.completedCount)
+        assertEquals(81, session.remainingCount)
+        assertEquals(25, session.progressPercent)
+        assertEquals(27, db.sessionDao().countOperations(id))
+    }
+
+    @Test
+    fun concurrentTapsAreAllCountedOnce() = runTest {
+        val id = start(500)
+        (1..200).map { async { repo.increment(id) } }.awaitAll()
+        assertEquals(200, repo.getSession(id)!!.completedCount)
+    }
+
+    @Test
+    fun reachingTargetCompletesExactlyOnceAndBlocksFurtherIncrements() = runTest {
+        val id = start(3)
+        assertTrue(repo.increment(id) is IncrementResult.Counted)
+        assertTrue(repo.increment(id) is IncrementResult.Counted)
+        clock.advance(60_000)
+        val completion = repo.increment(id)
+        assertTrue(completion is IncrementResult.Completed)
+
+        val after = repo.increment(id)
+        assertEquals(IncrementResult.Rejected(IncrementResult.Reason.ALREADY_FINISHED), after)
+
+        val session = repo.getSession(id)!!
+        assertEquals(SessionStatus.COMPLETED, session.status)
+        assertEquals(3, session.completedCount)
+        assertEquals(0, session.remainingCount)
+        assertEquals(100, session.progressPercent)
+        assertEquals(clock.now(), session.endTime)
+        assertNull(repo.getOngoingSession())
+        assertEquals(listOf(id), repo.observeHistory().first().map { it.id })
+    }
+
+    @Test
+    fun pausedSessionDoesNotCount() = runTest {
+        val id = start(10)
+        repo.increment(id)
+        assertTrue(repo.pause(id))
+        assertEquals(IncrementResult.Rejected(IncrementResult.Reason.PAUSED), repo.increment(id))
+        assertTrue(repo.resume(id))
+        repo.increment(id)
+        assertEquals(2, repo.getSession(id)!!.completedCount)
+    }
+
+    @Test
+    fun endingSessionKeepsItAsIncompleteInHistory() = runTest {
+        val id = start(108)
+        repeat(5) { repo.increment(id) }
+        assertTrue(repo.endSession(id))
+        val history = repo.observeHistory().first()
+        assertEquals(1, history.size)
+        assertEquals(SessionStatus.CANCELLED, history.single().status)
+        assertEquals(5, history.single().completedCount)
+        assertNotNull(history.single().endTime)
+    }
+
+    @Test
+    fun startingNewSessionEndsThePreviousOne() = runTest {
+        val first = start(10)
+        clock.advance(1000)
+        val second = start(20)
+        assertEquals(SessionStatus.CANCELLED, repo.getSession(first)!!.status)
+        assertEquals(second, repo.getOngoingSession()!!.id)
+    }
+
+    @Test
+    fun historyIsMostRecentFirstAndCanBeCleared() = runTest {
+        val ids = (1..3).map {
+            clock.advance(10_000)
+            val id = start(1)
+            repo.increment(id)
+            id
+        }
+        assertEquals(ids.reversed(), repo.observeHistory().first().map { it.id })
+
+        val ongoing = start(5)
+        repo.clearHistory()
+        assertTrue(repo.observeHistory().first().isEmpty())
+        assertEquals(ongoing, repo.getOngoingSession()!!.id)
+    }
+
+    @Test
+    fun activeSessionSurvivesProcessDeath() = runTest {
+        val name = "restore-test.db"
+        context.deleteDatabase(name)
+        val firstDb = PradarshanaDatabase.create(context, name)
+        val firstRepo = SessionRepository(firstDb, "phone-1", clock)
+        val id = (firstRepo.startSession(108) as StartResult.Started).sessionId
+        repeat(27) { firstRepo.increment(id) }
+        firstRepo.pause(id)
+        firstDb.close()
+
+        val secondDb = PradarshanaDatabase.create(context, name)
+        val restoredRepo = SessionRepository(secondDb, "phone-1", clock)
+        val restored = restoredRepo.observeOngoingSession().first()!!
+        assertEquals(id, restored.id)
+        assertEquals(27, restored.completedCount)
+        assertEquals(SessionStatus.PAUSED, restored.status)
+
+        restoredRepo.resume(id)
+        restoredRepo.increment(id)
+        assertEquals(28, restoredRepo.getSession(id)!!.completedCount)
+        assertEquals(28, secondDb.sessionDao().countOperations(id))
+        secondDb.close()
+        context.deleteDatabase(name)
+    }
+
+    @Test
+    fun completedHistoryIsPersistedAcrossRestarts() = runTest {
+        val name = "history-test.db"
+        context.deleteDatabase(name)
+        val firstDb = PradarshanaDatabase.create(context, name)
+        val firstRepo = SessionRepository(firstDb, "phone-1", clock)
+        val id = (firstRepo.startSession(2) as StartResult.Started).sessionId
+        firstRepo.increment(id)
+        firstRepo.increment(id)
+        firstDb.close()
+
+        val secondDb = PradarshanaDatabase.create(context, name)
+        val history = SessionRepository(secondDb, "phone-1", clock).observeHistory().first()
+        assertEquals(1, history.size)
+        assertEquals(SessionStatus.COMPLETED, history.single().status)
+        assertEquals(2, history.single().completedCount)
+        secondDb.close()
+        context.deleteDatabase(name)
+    }
+}

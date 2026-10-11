@@ -1,0 +1,1 @@
+-keep class com.pradarshana.core.data.sync.PradarshanaWearableListenerService

@@ -1,4 +1,4 @@
-package com.pradarshana.app.ui.counter
+package com.pradarshana.core.data.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

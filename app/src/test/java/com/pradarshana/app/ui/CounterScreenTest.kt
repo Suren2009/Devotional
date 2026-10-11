@@ -13,7 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.counter.CounterRoute
-import com.pradarshana.app.ui.counter.CounterViewModel
+import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.StartResult

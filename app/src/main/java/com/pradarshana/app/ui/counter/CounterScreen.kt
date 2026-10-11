@@ -58,6 +58,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.PauseIcon
+import com.pradarshana.core.data.presentation.CounterEvent
+import com.pradarshana.core.data.presentation.CounterUiState
+import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.components.ProgressRing
 import com.pradarshana.app.ui.theme.CounterNumberStyle
 import com.pradarshana.core.model.PradarshanaSession

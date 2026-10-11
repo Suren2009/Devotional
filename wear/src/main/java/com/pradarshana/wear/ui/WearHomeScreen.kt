@@ -1,6 +1,7 @@
 package com.pradarshana.wear.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -38,7 +39,11 @@ fun WearHomeScreen(
         timeText = { TimeText() },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
     ) {
-        ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
+        ScalingLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 24.dp),
+        ) {
             item {
                 ListHeader {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -82,7 +87,11 @@ fun WearTargetScreen(onSelect: (Int) -> Unit, onCustom: () -> Unit) {
         timeText = { TimeText() },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
     ) {
-        ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
+        ScalingLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 24.dp),
+        ) {
             item { ListHeader { Text("How many rounds?") } }
             items(WearPresetTargets) { target ->
                 Chip(

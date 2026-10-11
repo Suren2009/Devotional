@@ -42,6 +42,18 @@ android {
     }
 }
 
+androidComponents {
+    // Compose UI tests need the debug-only ui-test-manifest host activity.
+    beforeVariants(selector().withBuildType("release")) { it.enableUnitTest = false }
+}
+
+tasks.withType<Test>().configureEach {
+    if (project.hasProperty("screenshots")) {
+        systemProperty("screenshots.dir", rootProject.layout.buildDirectory.dir("screenshots").get().asFile.absolutePath)
+        outputs.upToDateWhen { false }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)

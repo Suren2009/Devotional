@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -257,9 +258,12 @@ fun CounterScreen(
 private fun Stat(label: String, value: String, tag: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clearAndSetSemantics { contentDescription = "$label $value" },
+        modifier = Modifier.clearAndSetSemantics {
+            contentDescription = "$label $value"
+            testTag = tag
+        },
     ) {
-        Text(value, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag(tag), textAlign = TextAlign.Center)
+        Text(value, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

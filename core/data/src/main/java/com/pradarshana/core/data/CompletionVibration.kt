@@ -8,7 +8,7 @@ import android.os.VibratorManager
 
 /** A gentle vibration when the target number of rounds is reached. */
 object CompletionVibration {
-    const val DURATION_MILLIS = 3_000L
+    const val DURATION_MILLIS = 1_000L
     private const val AMPLITUDE = 80
 
     fun start(context: Context) {

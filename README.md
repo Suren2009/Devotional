@@ -13,7 +13,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
 - Counting screen: large completed count, target, remaining, percentage and progress ring, a large **+** button,
   Pause/Resume, and End Session with a confirmation dialog. Subtle haptic tick on every round, and a gentle
-  three-second vibration when the target is reached. The screen stays on while a session is active.
+  one-second vibration when the target is reached. The screen stays on while a session is active.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, duration and a gentle radiance animation.
 - History, newest first, with date/time, target, completed rounds, duration and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
@@ -26,7 +26,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - Counting screen for round displays: large count, target and remaining, progress arc, a large **+** button and
   Pause/Resume. *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk
   cannot end the session.
-- Completion screen with a gentle three-second vibration.
+- Completion screen with a gentle one-second vibration.
 - Works stand-alone; it synchronises with the phone whenever they are connected.
 
 Every count is saved immediately, so an active session survives the app being closed or the process being killed

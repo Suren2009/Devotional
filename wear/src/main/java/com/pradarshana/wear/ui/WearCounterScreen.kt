@@ -1,5 +1,7 @@
 package com.pradarshana.wear.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,11 +20,14 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -96,6 +101,50 @@ fun WearCounterScreen(
 ) {
     val paused = session.status == SessionStatus.PAUSED
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
+    var blackout by rememberSaveable { mutableStateOf(false) }
+    var plusClicks by rememberSaveable { mutableIntStateOf(0) }
+
+    fun wake() {
+        blackout = false
+        plusClicks = 0
+    }
+
+    fun onPlus() {
+        if (!session.canIncrement) return
+        val completesNow = session.completedCount + 1 >= session.targetCount
+        onIncrement()
+        if (completesNow) {
+            wake()
+            return
+        }
+        if (!blackout) {
+            plusClicks += 1
+            if (plusClicks >= 2) blackout = true
+        }
+    }
+
+    if (blackout && session.status != SessionStatus.COMPLETED) {
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { wake() }) }
+                .testTag("battery_saver"),
+            contentAlignment = Alignment.Center,
+        ) {
+            val plusSize = (maxWidth * 0.36f).coerceIn(56.dp, 84.dp)
+            Button(
+                onClick = ::onPlus,
+                enabled = session.canIncrement,
+                modifier = Modifier
+                    .size(plusSize)
+                    .testTag("wear_increment"),
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = "Count one round", modifier = Modifier.size(plusSize * 0.55f))
+            }
+        }
+        return
+    }
 
     Scaffold(timeText = { TimeText() }) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -150,7 +199,7 @@ fun WearCounterScreen(
                         )
                     }
                     Button(
-                        onClick = onIncrement,
+                        onClick = ::onPlus,
                         enabled = session.canIncrement,
                         modifier = Modifier
                             .size(plusSize)

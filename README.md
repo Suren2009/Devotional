@@ -15,7 +15,9 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - Counting screen: the temple mandala for a Pradarshana, or a japa mala while chanting, with a large completed count, target, remaining, percentage and progress ring, a large **+** button,
   Pause/Resume, and End Session with a confirmation dialog. Each + can give a short 70 ms vibration
   (on by default, and switched off in Settings), and reaching the target vibrates for half a second.
-  The screen stays on while a session is active.
+  After two taps on **+**, the screen turns black except that button, to save battery. Double-tap anywhere
+  else to bring the count back. Finishing the session shows the normal completion screen. The screen stays
+  on while a session is active.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, duration and a gentle radiance animation.
 - History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, duration and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.

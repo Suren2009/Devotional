@@ -1,9 +1,11 @@
 package com.pradarshana.app.ui
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -11,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.counter.CounterRoute
 import com.pradarshana.core.data.presentation.CounterViewModel
@@ -86,14 +89,39 @@ class CounterScreenTest {
     @Test
     fun tappingPlusIncrementsAndUpdatesRemainingAndProgress() {
         val id = showCounter(108)
-        repeat(27) {
-            compose.onNodeWithTag("increment_button").performClick()
-            waitForText("completed_count", "${it + 1}")
+        compose.onNodeWithTag("increment_button").performClick()
+        waitForText("completed_count", "1")
+        repeat(26) { compose.onNodeWithTag("increment_button").performClick() }
+        compose.waitUntilReal { runBlocking { repo.getSession(id)!!.completedCount } == 27 }
+        compose.onNodeWithTag("battery_saver").performTouchInput { doubleClick(Offset(8f, 8f)) }
+        compose.waitUntilReal {
+            compose.onAllNodes(hasTestTag("completed_count"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
+        compose.onNodeWithTag("completed_count", useUnmergedTree = true).assertTextEquals("27")
         compose.onNodeWithTag("remaining_count").assertContentDescriptionEquals("Remaining 81")
         compose.onNodeWithTag("progress_percent").assertContentDescriptionEquals("Progress 25%")
         compose.onNodeWithContentDescription("27 of 108 rounds completed, 25 percent").assertExists()
         assertEquals(27, runBlocking { repo.getSession(id)!!.completedCount })
+    }
+
+    @Test
+    fun twoPlusTapsBlackOutTheScreenUntilADoubleTapOutsideTheButton() {
+        showCounter(108)
+        compose.onNodeWithTag("increment_button").performClick()
+        waitForText("completed_count", "1")
+        compose.onNodeWithTag("battery_saver").assertDoesNotExist()
+        compose.onNodeWithTag("increment_button").performClick()
+        compose.waitUntilReal { compose.onAllNodes(hasTestTag("battery_saver")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("pause_button").assertDoesNotExist()
+        compose.onNodeWithTag("completed_count", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("increment_button").assertExists()
+
+        compose.onNodeWithTag("battery_saver").performTouchInput { doubleClick(Offset(8f, 8f)) }
+        compose.waitUntilReal {
+            compose.onAllNodes(hasTestTag("completed_count"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("pause_button").assertExists()
+        compose.onNodeWithTag("battery_saver").assertDoesNotExist()
     }
 
     @Test

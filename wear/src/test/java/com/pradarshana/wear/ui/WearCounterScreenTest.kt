@@ -1,7 +1,9 @@
 package com.pradarshana.wear.ui
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeTestRule
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.StartResult
@@ -82,8 +85,14 @@ class WearCounterScreenTest {
 
     @Test
     fun countsRoundsAndShowsRemaining() {
-        showCounter(108)
-        repeat(27) { tapAndWait(it + 1) }
+        val id = showCounter(108)
+        tapAndWait(1)
+        repeat(26) { compose.onNodeWithTag("wear_increment").performClick() }
+        compose.waitUntilReal { runBlocking { repo.getSession(id)!!.completedCount } == 27 }
+        compose.onNodeWithTag("battery_saver").performTouchInput { doubleClick(Offset(4f, 4f)) }
+        compose.waitUntilReal {
+            compose.onAllNodes(hasTestTag("wear_count"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("wear_count", useUnmergedTree = true).assertTextEquals("27")
         compose.onNodeWithText("of 108 · 81 left", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("27 of 108 rounds, 81 remaining").assertExists()
@@ -92,8 +101,7 @@ class WearCounterScreenTest {
     @Test
     fun sessionCountedEntirelyOnWatchCompletesOnce() {
         val id = showCounter(5)
-        repeat(4) { tapAndWait(it + 1) }
-        compose.onNodeWithTag("wear_increment").performClick()
+        repeat(5) { compose.onNodeWithTag("wear_increment").performClick() }
         compose.waitUntilReal { completions == 1 }
         compose.onNodeWithTag("wear_increment").performClick()
         compose.waitForIdle()

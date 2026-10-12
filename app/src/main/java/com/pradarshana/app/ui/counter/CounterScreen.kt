@@ -1,5 +1,8 @@
 package com.pradarshana.app.ui.counter
 
+import android.app.Activity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,11 +39,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -53,6 +59,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.CompletionVibration
@@ -120,7 +128,39 @@ fun CounterScreen(
     onBack: () -> Unit,
 ) {
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
+    var blackout by rememberSaveable { mutableStateOf(false) }
+    var plusClicks by rememberSaveable { mutableIntStateOf(0) }
     val paused = session.status == SessionStatus.PAUSED
+
+    fun wake() {
+        blackout = false
+        plusClicks = 0
+    }
+
+    fun onPlus() {
+        if (!session.canIncrement) return
+        val completesNow = session.completedCount + 1 >= session.targetCount
+        onIncrement()
+        if (completesNow) {
+            wake()
+            return
+        }
+        if (!blackout) {
+            plusClicks += 1
+            if (plusClicks >= 2) blackout = true
+        }
+    }
+
+    if (blackout && session.status != SessionStatus.COMPLETED) {
+        BlackCountingScreen(
+            enabled = session.canIncrement,
+            paused = paused,
+            remaining = session.remainingCount,
+            onPlus = ::onPlus,
+            onWake = ::wake,
+        )
+        return
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -192,7 +232,7 @@ fun CounterScreen(
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = onIncrement,
+                onClick = ::onPlus,
                 enabled = session.canIncrement,
                 shape = CircleShape,
                 contentPadding = ButtonDefaults.ContentPadding,
@@ -258,6 +298,55 @@ fun CounterScreen(
                 TextButton(onClick = { confirmEnd = false }) { Text("Keep Counting") }
             },
         )
+    }
+}
+
+@Composable
+private fun BlackCountingScreen(
+    enabled: Boolean,
+    paused: Boolean,
+    remaining: Int,
+    onPlus: () -> Unit,
+    onWake: () -> Unit,
+) {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = (view.context as? Activity)?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        val previousStatus = window?.statusBarColor
+        val previousNavigation = window?.navigationBarColor
+        window?.statusBarColor = android.graphics.Color.BLACK
+        window?.navigationBarColor = android.graphics.Color.BLACK
+        controller?.hide(WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            if (previousStatus != null) window.statusBarColor = previousStatus
+            if (previousNavigation != null) window.navigationBarColor = previousNavigation
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onWake() }) }
+            .testTag("battery_saver")
+            .semantics { contentDescription = "Screen darkened to save battery. Double tap outside the plus button to show the count." },
+        contentAlignment = Alignment.Center,
+    ) {
+        Button(
+            onClick = onPlus,
+            enabled = enabled,
+            shape = CircleShape,
+            modifier = Modifier
+                .size(136.dp)
+                .testTag("increment_button")
+                .semantics {
+                    contentDescription = "Count one round"
+                    stateDescription = if (paused) "Paused" else "$remaining remaining"
+                },
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
+        }
     }
 }
 

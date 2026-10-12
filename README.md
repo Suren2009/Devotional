@@ -116,6 +116,8 @@ then run `adb -s <phone-serial> forward tcp:5601 tcp:5601` and pair from the com
 ```bash
 ./gradlew test                    # all JVM tests: core:model, core:data, app and wear (Robolectric)
 ./gradlew connectedAndroidTest    # instrumentation tests on a connected device or emulator
+./gradlew :app:testDebugUnitTest :wear:testDebugUnitTest -Pscreenshots
+                                  # also render the Compose screens to PNG under build/screenshots
 ```
 
 | Area | Tests |
@@ -132,12 +134,25 @@ then run `adb -s <phone-serial> forward tcp:5601 tcp:5601` and pair from the com
 The sync tests use `FakeDataLayer`, which behaves like `DataClient`: it keeps the latest item per session per node,
 holds items while the link is down, and delivers the newest version on reconnect.
 
+## What was verified here
+
+`./gradlew test` passes for every module (domain rules, repository, simulated phone–watch sync, and Robolectric Compose
+UI tests for the phone and a 227dp round watch).
+
+On an Android 14 phone emulator, `connectedDebugAndroidTest` passed for:
+
+- `DatabaseSchemaTest` — the exported Room schema opens and keeps a completed session.
+- `PradarshanaFlowTest` — start a session with target 3, tap **+** three times, land on **Pradarshana Completed!**, then open history and see the completed session.
+
+KVM is present on this machine but creating a virtual CPU faults (`kvm_spurious_fault`), so the emulator ran with
+software CPU emulation. That is slow enough that the system UI itself shows "isn't responding" dialogs, which blocked
+an interactive tap-through after the tests. The instrumentation test still drove the real app end to end.
+
 ## Not verified on real hardware
 
-Builds, the JVM test suite and the emulator runs were done in a headless Linux environment. The following could not
-be exercised there and should be checked on physical devices:
-
-- Real Bluetooth Data Layer sync between a paired phone and watch, including disconnect and reconnect. The sync logic is
-  covered by the simulated Data Layer tests above, but end-to-end delivery through Google Play services was not run.
-- How the haptic feedback feels, and readability while walking outdoors in sunlight.
-- Behaviour on small (around 192dp) round watches and on square watches. The UI was tested on a 227dp round screen.
+- Bluetooth Data Layer delivery between a paired phone and watch, including a real disconnect and reconnect. The sync
+  rules are covered by `PhoneWatchSyncTest` against a store-and-forward fake of `DataClient`, but Google Play services
+  was not used as the transport.
+- A Wear OS emulator or physical watch. The watch UI was rendered and clicked under Robolectric on a round 227dp display.
+- How the haptic feedback feels, and readability in sunlight.
+- Small (around 192dp) round watches and square watches.

@@ -24,6 +24,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -60,6 +63,7 @@ import com.pradarshana.core.data.location.hasLocationPermission
 import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.SessionDetails
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.CounterRules.TargetValidation
 import com.pradarshana.core.model.PradarshanaSession
 import kotlinx.coroutines.channels.Channel
@@ -82,13 +86,18 @@ class StartViewModel(
         private set
     var counts by mutableStateOf(CommonCounts.defaults)
         private set
+    var kind by mutableStateOf(SessionKind.PRADARSHANA)
+        private set
     private var titleEdited = false
+    private var kindEdited = false
     private var starting = false
 
     init {
         viewModelScope.launch {
             val latest = repository.latestSessionTitle()
             if (!titleEdited && title.isEmpty() && latest.isNotBlank()) title = latest
+            val latestKind = repository.latestSessionKind()
+            if (!kindEdited) kind = latestKind
             counts = repository.suggestedCounts()
         }
     }
@@ -104,6 +113,11 @@ class StartViewModel(
         title = value.take(SessionDetails.MAX_TITLE_LENGTH)
     }
 
+    fun onKindChange(value: SessionKind) {
+        kindEdited = true
+        kind = value
+    }
+
     fun onInputChange(value: String) {
         input = value.filter { it.isDigit() }.take(6)
         error = null
@@ -116,7 +130,7 @@ class StartViewModel(
                 starting = true
                 viewModelScope.launch {
                     val fix = if (captureLocation) runCatching { locationCapture.capture() }.getOrNull() else null
-                    when (val result = repository.startSession(validation.target, title, fix?.latitude, fix?.longitude)) {
+                    when (val result = repository.startSession(validation.target, title, fix?.latitude, fix?.longitude, kind)) {
                         is StartResult.Started -> _started.send(result.sessionId)
                         is StartResult.Invalid -> error = messageFor(result.reason)
                     }
@@ -153,6 +167,8 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
         error = vm.error,
         ongoing = ongoing,
         counts = vm.counts,
+        kind = vm.kind,
+        onKindChange = vm::onKindChange,
         onTitleChange = vm::onTitleChange,
         onInputChange = vm::onInputChange,
         onStart = {
@@ -175,6 +191,8 @@ fun StartScreen(
     title: String = "",
     onTitleChange: (String) -> Unit = {},
     counts: List<Int> = CommonCounts.defaults,
+    kind: SessionKind = SessionKind.PRADARSHANA,
+    onKindChange: (SessionKind) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -201,7 +219,23 @@ fun StartScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
-            Text("How many rounds will you walk?", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                if (kind == SessionKind.CHANTING) "How many names will you chant?" else "How many rounds will you walk?",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Spacer(Modifier.height(16.dp))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SessionKind.entries.forEachIndexed { index, option ->
+                    SegmentedButton(
+                        selected = kind == option,
+                        onClick = { onKindChange(option) },
+                        shape = SegmentedButtonDefaults.itemShape(index, SessionKind.entries.size),
+                        modifier = Modifier.testTag("kind_${option.name}"),
+                    ) {
+                        Text(option.label)
+                    }
+                }
+            }
             Spacer(Modifier.height(20.dp))
             OutlinedTextField(
                 value = title,

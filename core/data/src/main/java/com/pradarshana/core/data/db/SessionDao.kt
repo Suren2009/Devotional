@@ -25,6 +25,9 @@ interface SessionDao {
     @Query("SELECT title FROM sessions ORDER BY start_time DESC, id DESC LIMIT 1")
     suspend fun latestTitle(): String?
 
+    @Query("SELECT kind FROM sessions ORDER BY start_time DESC, id DESC LIMIT 1")
+    suspend fun latestKind(): String?
+
     @Query("SELECT * FROM sessions WHERE id = :id")
     suspend fun getSession(id: String): SessionEntity?
 

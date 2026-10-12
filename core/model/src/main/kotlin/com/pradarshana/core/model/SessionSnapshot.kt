@@ -25,6 +25,7 @@ data class SessionSnapshot(
     val title: String = "",
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val kind: SessionKind = SessionKind.PRADARSHANA,
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
@@ -49,5 +50,6 @@ data class SessionSnapshot(
         title = title,
         latitude = latitude,
         longitude = longitude,
+        kind = kind,
     )
 }

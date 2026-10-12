@@ -1,6 +1,5 @@
 package com.pradarshana.wear.ui
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,6 +23,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -46,6 +46,7 @@ import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.dialog.Alert
 import androidx.wear.compose.material.dialog.Dialog
 import com.pradarshana.core.data.CompletionVibration
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.presentation.CounterEvent
 import com.pradarshana.core.data.presentation.CounterUiState
 import com.pradarshana.core.data.presentation.CounterViewModel
@@ -61,10 +62,11 @@ fun WearCounterRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val view = LocalView.current
+    val feedback = (LocalContext.current.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                CounterEvent.RoundCounted -> view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                CounterEvent.RoundCounted -> if (feedback?.vibrateOnCount?.value != false) CompletionVibration.tap(view.context)
                 CounterEvent.Completed -> {
                     CompletionVibration.start(view.context)
                     onCompleted(sessionId)

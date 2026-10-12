@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -37,9 +40,16 @@ import com.pradarshana.app.ui.theme.ThemeMode
 
 @Composable
 fun SettingsRoute(onBack: () -> Unit) {
-    val store = (LocalContext.current.applicationContext as PradarshanaApp).themeStore
-    val mode by store.mode.collectAsStateWithLifecycle()
-    SettingsScreen(mode = mode, onMode = store::set, onBack = onBack)
+    val app = LocalContext.current.applicationContext as PradarshanaApp
+    val mode by app.themeStore.mode.collectAsStateWithLifecycle()
+    val vibrateOnCount by app.container.countFeedback.vibrateOnCount.collectAsStateWithLifecycle()
+    SettingsScreen(
+        mode = mode,
+        onMode = app.themeStore::set,
+        vibrateOnCount = vibrateOnCount,
+        onVibrateOnCount = app.container.countFeedback::setVibrateOnCount,
+        onBack = onBack,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +58,8 @@ fun SettingsScreen(
     mode: ThemeMode,
     onMode: (ThemeMode) -> Unit,
     onBack: () -> Unit,
+    vibrateOnCount: Boolean = true,
+    onVibrateOnCount: (Boolean) -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -67,6 +79,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
             Text(
@@ -102,6 +115,39 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text(
+                "Counting",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() },
+            )
+            Text(
+                "A short vibration each time you tap +.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .clickable(role = Role.Switch) { onVibrateOnCount(!vibrateOnCount) }
+                    .padding(horizontal = 16.dp)
+                    .testTag("vibrate_on_count"),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Vibrate on each count", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (vibrateOnCount) "On" else "Off",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = vibrateOnCount, onCheckedChange = onVibrateOnCount)
             }
         }
     }

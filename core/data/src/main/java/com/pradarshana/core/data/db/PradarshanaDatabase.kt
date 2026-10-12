@@ -8,6 +8,7 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 
 @Database(
@@ -27,7 +28,7 @@ abstract class PradarshanaDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         const val NAME = "pradarshana.db"
 
         /**
@@ -55,7 +56,14 @@ abstract class PradarshanaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        /** Existing walks stay Pradarshana. New sessions can also be chanting. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'PRADARSHANA'")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         fun create(context: Context, name: String? = NAME): PradarshanaDatabase {
             val builder = if (name == null) {
@@ -74,4 +82,10 @@ class Converters {
 
     @TypeConverter
     fun stringToStatus(value: String): SessionStatus = SessionStatus.valueOf(value)
+
+    @TypeConverter
+    fun kindToString(kind: SessionKind): String = kind.name
+
+    @TypeConverter
+    fun stringToKind(value: String): SessionKind = SessionKind.fromStored(value)
 }

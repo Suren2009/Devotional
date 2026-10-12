@@ -216,12 +216,18 @@ private fun HistoryItem(
             .fillMaxWidth()
             .clickable(role = Role.Button, onClickLabel = "Open details", onClick = onClick)
             .semantics(mergeDescendants = true) {
-                contentDescription = "${session.displayTitle}, ${Formatting.dateTime(session.startTime)}, " +
-                    "${session.completedCount} of ${session.targetCount} rounds, $duration, $statusLabel"
+                contentDescription = "${session.displayTitle}, ${session.kind.label}, ${Formatting.dateTime(session.startTime)}, " +
+                    "${session.completedCount} of ${session.targetCount} ${session.kind.unit}, $duration, $statusLabel"
             },
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(session.displayTitle, style = MaterialTheme.typography.titleMedium)
+            Text(
+                session.kind.label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag("session_kind_${session.id}"),
+            )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -236,7 +242,7 @@ private fun HistoryItem(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text("${session.completedCount}", style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    " / ${session.targetCount} rounds",
+                    " / ${session.targetCount} ${session.kind.unit}",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

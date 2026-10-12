@@ -65,6 +65,27 @@ class SessionMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun version3SessionsStayPradarshanaWhenKindIsAdded() {
+        helper.createDatabase("migrate-v3.db", 3).apply {
+            execSQL(
+                """INSERT INTO sessions (id, target_count, completed_count, start_time, end_time, status,
+                   status_updated_at, status_updated_by, last_updated_time, origin_device_id, local_version,
+                   synced_version, title)
+                   VALUES ('s1', 108, 108, 1, 2, 'COMPLETED', 2, 'phone', 2, 'phone', 1, 1, 'Temple')""",
+            )
+            close()
+        }
+        val migrated = helper.runMigrationsAndValidate("migrate-v3.db", 4, true, PradarshanaDatabase.MIGRATION_3_4)
+        migrated.query("SELECT kind, title, completed_count FROM sessions WHERE id = 's1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("PRADARSHANA", cursor.getString(0))
+            assertEquals("Temple", cursor.getString(1))
+            assertEquals(108, cursor.getInt(2))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DB_NAME = "migrate-v1.db"
     }

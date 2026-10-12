@@ -116,15 +116,16 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    DetailRow("Type", session.kind.label)
                     DetailRow("Title", session.displayTitle)
                     DetailRow("Place", placeLabel(session))
                     DetailRow("Date", Formatting.date(session.startTime))
                     DetailRow("Started", Formatting.time(session.startTime))
                     DetailRow("Ended", session.endTime?.let(Formatting::time) ?: "—")
                     DetailRow("Duration", DurationFormat.format(session.durationMillis()))
-                    DetailRow("Target rounds", session.targetCount.toString())
-                    DetailRow("Completed rounds", session.completedCount.toString())
-                    DetailRow("Remaining rounds", session.remainingCount.toString())
+                    DetailRow("Target ${session.kind.unit}", session.targetCount.toString())
+                    DetailRow("Completed ${session.kind.unit}", session.completedCount.toString())
+                    DetailRow("Remaining ${session.kind.unit}", session.remainingCount.toString())
                     DetailRow("Progress", "${session.progressPercent}%")
                     DetailRow("Status", statusLabel(session.status), divider = false)
                 }

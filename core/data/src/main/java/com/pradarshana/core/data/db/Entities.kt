@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 
 @Entity(
@@ -30,6 +31,8 @@ data class SessionEntity(
     @ColumnInfo(name = "title", defaultValue = "''") val title: String,
     val latitude: Double?,
     val longitude: Double?,
+    /** Pradarshana or chanting. Older sessions are pradakshina walks. */
+    @ColumnInfo(name = "kind", defaultValue = "'PRADARSHANA'") val kind: SessionKind,
 )
 
 /** One G-Counter entry: the number of rounds counted on [deviceId] for a session. */

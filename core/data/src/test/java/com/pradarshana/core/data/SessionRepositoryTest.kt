@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.core.data.db.PradarshanaDatabase
 import com.pradarshana.core.model.CounterRules
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -46,7 +47,8 @@ class SessionRepositoryTest {
         title: String = "",
         latitude: Double? = null,
         longitude: Double? = null,
-    ): String = (repo.startSession(target, title, latitude, longitude) as StartResult.Started).sessionId
+        kind: SessionKind = SessionKind.PRADARSHANA,
+    ): String = (repo.startSession(target, title, latitude, longitude, kind) as StartResult.Started).sessionId
 
     @Test
     fun titleAndLocationAreStoredAndABlankTitleStaysBlank() = runTest {
@@ -249,5 +251,15 @@ class SessionRepositoryTest {
         start(21, title = "Meenakshi")
         assertEquals("Meenakshi", repo.latestSessionTitle())
         assertEquals(listOf(21, 108, 3, 9, 18, 54), repo.suggestedCounts())
+    }
+
+    @Test
+    fun chantingIsStoredAndBecomesTheLatestKind() = runTest {
+        start(108)
+        clock.advance(1_000)
+        val id = start(11, title = "Sahasranama", kind = SessionKind.CHANTING)
+        assertEquals(SessionKind.CHANTING, repo.getSession(id)!!.kind)
+        assertEquals(SessionKind.CHANTING, repo.latestSessionKind())
+        assertEquals(SessionKind.PRADARSHANA, repo.getSession(repo.observeHistory().first().last().id)!!.kind)
     }
 }

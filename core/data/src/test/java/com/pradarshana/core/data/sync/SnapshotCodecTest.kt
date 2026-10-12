@@ -1,6 +1,7 @@
 package com.pradarshana.core.data.sync
 
 import com.google.android.gms.wearable.DataMap
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionSnapshot
 import com.pradarshana.core.model.SessionStatus
 import org.junit.Assert.assertEquals
@@ -39,6 +40,15 @@ class SnapshotCodecTest {
         assertEquals(snapshot, decoded.snapshot)
         assertEquals(27, decoded.snapshot.completedCount)
         assertEquals(81, map.getInt("remaining_count"))
+    }
+
+    @Test
+    fun kindRoundTripsAndAnUnknownKindStaysPradarshana() {
+        val chanting = snapshot.copy(kind = SessionKind.CHANTING)
+        val map = DataMap().also { SnapshotCodec.write(it, chanting, "phone-1") }
+        assertEquals(SessionKind.CHANTING, SnapshotCodec.read(map)!!.snapshot.kind)
+        map.putString("kind", "SOMETHING_ELSE")
+        assertEquals(SessionKind.PRADARSHANA, SnapshotCodec.read(map)!!.snapshot.kind)
     }
 
     @Test

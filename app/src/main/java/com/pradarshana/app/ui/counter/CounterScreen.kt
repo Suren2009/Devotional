@@ -1,7 +1,5 @@
 package com.pradarshana.app.ui.counter
 
-import android.view.HapticFeedbackConstants
-import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -57,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.CompletionVibration
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.app.ui.components.PauseIcon
 import com.pradarshana.core.data.presentation.CounterEvent
 import com.pradarshana.core.data.presentation.CounterUiState
@@ -76,11 +76,12 @@ fun CounterRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val view = LocalView.current
+    val feedback = (LocalContext.current.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
 
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                CounterEvent.RoundCounted -> view.tick()
+                CounterEvent.RoundCounted -> if (feedback?.vibrateOnCount?.value != false) CompletionVibration.tap(view.context)
                 CounterEvent.Completed -> {
                     CompletionVibration.start(view.context)
                     onCompleted(sessionId)
@@ -278,8 +279,4 @@ private fun KeepScreenOn(enabled: Boolean) {
         view.keepScreenOn = enabled
         onDispose { view.keepScreenOn = false }
     }
-}
-
-private fun View.tick() {
-    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
 }

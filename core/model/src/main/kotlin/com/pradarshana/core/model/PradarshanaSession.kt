@@ -16,6 +16,7 @@ data class PradarshanaSession(
     val title: String = "",
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val kind: SessionKind = SessionKind.PRADARSHANA,
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }

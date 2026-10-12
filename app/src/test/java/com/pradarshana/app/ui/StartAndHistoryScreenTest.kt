@@ -18,6 +18,7 @@ import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.db.PradarshanaDatabase
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.runBlocking
@@ -121,7 +122,7 @@ class StartAndHistoryScreenTest {
 
     @Test
     fun latestTitleIsPrefilledAndLatestCountIsTheFirstChip() {
-        runBlocking { repo.startSession(54, "Meenakshi") }
+        runBlocking { repo.startSession(54, "Meenakshi", kind = SessionKind.CHANTING) }
         val vm = StartViewModel(repo)
         compose.setContent {
             PradarshanaTheme {
@@ -135,10 +136,12 @@ class StartAndHistoryScreenTest {
                     title = vm.title,
                     onTitleChange = vm::onTitleChange,
                     counts = vm.counts,
+                    kind = vm.kind,
+                    onKindChange = vm::onKindChange,
                 )
             }
         }
-        compose.waitUntilReal { vm.title == "Meenakshi" && vm.counts.first() == 54 }
+        compose.waitUntilReal { vm.title == "Meenakshi" && vm.counts.first() == 54 && vm.kind == SessionKind.CHANTING }
         assertEquals(listOf(54, 3, 9, 18, 108), vm.counts)
         compose.onNodeWithText("Meenakshi").assertExists()
         compose.onNodeWithTag("count_54").assertExists()
@@ -188,7 +191,10 @@ class StartAndHistoryScreenTest {
                 "new", 108, 108, 2_000_000, 2_600_000, SessionStatus.COMPLETED, 2_600_000,
                 title = "Kapaleeshwarar", latitude = 13.033, longitude = 80.270,
             ),
-            PradarshanaSession("old", 21, 9, 1_000_000, 1_300_000, SessionStatus.CANCELLED, 1_300_000),
+            PradarshanaSession(
+                "old", 21, 9, 1_000_000, 1_300_000, SessionStatus.CANCELLED, 1_300_000,
+                kind = SessionKind.CHANTING,
+            ),
         )
         compose.setContent {
             PradarshanaTheme {
@@ -204,6 +210,9 @@ class StartAndHistoryScreenTest {
         }
         compose.onNodeWithText("Kapaleeshwarar").assertExists()
         compose.onNodeWithText("Untitled").assertExists()
+        compose.onNodeWithTag("session_kind_new", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Chanting", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText(" / 21 names", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Completed").assertExists()
         compose.onNodeWithText("Incomplete").assertExists()
         compose.onNodeWithText(" / 108 rounds").assertExists()
@@ -211,7 +220,7 @@ class StartAndHistoryScreenTest {
 
         compose.onNodeWithTag("show_on_map_new").performClick()
         assertEquals("new", mapped)
-        compose.onNode(hasText(" / 21 rounds"), useUnmergedTree = true).performClick()
+        compose.onNode(hasText(" / 21 names"), useUnmergedTree = true).performClick()
         assertEquals("old", opened)
 
         compose.onNodeWithTag("delete_session_old").performClick()

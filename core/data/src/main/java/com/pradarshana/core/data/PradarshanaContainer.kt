@@ -15,6 +15,7 @@ class PradarshanaContainer(context: Context, devicePrefix: String) {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val deviceId: String = DeviceIdStore.getOrCreate(appContext, devicePrefix)
+    val countFeedback = CountFeedbackPreferences(appContext)
     val database: PradarshanaDatabase = PradarshanaDatabase.create(appContext)
     val repository = SessionRepository(database, deviceId)
     val syncManager = SyncManager(repository, DataLayerSyncTransport(appContext, deviceId), appScope)

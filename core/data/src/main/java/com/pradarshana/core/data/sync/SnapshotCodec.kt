@@ -2,6 +2,7 @@ package com.pradarshana.core.data.sync
 
 import com.google.android.gms.wearable.DataMap
 import com.pradarshana.core.model.SessionDetails
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionSnapshot
 import com.pradarshana.core.model.SessionStatus
 
@@ -28,6 +29,7 @@ object SnapshotCodec {
     private const val KEY_HAS_LOCATION = "has_location"
     private const val KEY_LATITUDE = "latitude"
     private const val KEY_LONGITUDE = "longitude"
+    private const val KEY_KIND = "kind"
 
     fun write(map: DataMap, snapshot: SessionSnapshot, sourceDeviceId: String) {
         map.putInt(KEY_SCHEMA, SCHEMA_VERSION)
@@ -55,6 +57,7 @@ object SnapshotCodec {
             map.putDouble(KEY_LATITUDE, latitude)
             map.putDouble(KEY_LONGITUDE, longitude)
         }
+        map.putString(KEY_KIND, snapshot.kind.name)
     }
 
     /** Returns null for malformed or newer-schema payloads instead of throwing. */
@@ -85,6 +88,7 @@ object SnapshotCodec {
                 title = SessionDetails.normalizeTitle(map.getString(KEY_TITLE) ?: ""),
                 latitude = latitude,
                 longitude = longitude,
+                kind = SessionKind.fromStored(map.getString(KEY_KIND)),
             ),
         )
     }.getOrNull()

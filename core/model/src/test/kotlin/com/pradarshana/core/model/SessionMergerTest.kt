@@ -129,6 +129,14 @@ class SessionMergerTest {
     }
 
     @Test
+    fun `an existing session keeps its kind and a new one takes the remote kind`() {
+        val local = snapshot(mapOf(PHONE to 1))
+        val remote = snapshot(mapOf(PHONE to 2)).copy(kind = SessionKind.CHANTING)
+        assertEquals(SessionKind.PRADARSHANA, SessionMerger.merge(local, remote).merged.kind)
+        assertEquals(SessionKind.CHANTING, SessionMerger.merge(null, remote).merged.kind)
+    }
+
+    @Test
     fun `new remote session is adopted as is`() {
         val remote = snapshot(mapOf(WATCH to 4), statusBy = WATCH)
         val result = SessionMerger.merge(null, remote)

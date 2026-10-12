@@ -27,6 +27,7 @@ import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 
 @Composable
@@ -34,6 +35,8 @@ fun WearHomeScreen(
     ongoing: PradarshanaSession?,
     onResume: (String) -> Unit,
     onStart: () -> Unit,
+    vibrateOnCount: Boolean = true,
+    onToggleVibration: () -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     Scaffold(
@@ -77,6 +80,14 @@ fun WearHomeScreen(
                     modifier = Modifier.fillMaxWidth().testTag("wear_start"),
                 )
             }
+            item {
+                Chip(
+                    onClick = onToggleVibration,
+                    label = { Text(if (vibrateOnCount) "Tap vibration on" else "Tap vibration off") },
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth().testTag("wear_vibration"),
+                )
+            }
         }
     }
 }
@@ -86,6 +97,8 @@ fun WearTargetScreen(
     onSelect: (Int) -> Unit,
     onCustom: () -> Unit,
     counts: List<Int> = CommonCounts.defaults,
+    kind: SessionKind = SessionKind.PRADARSHANA,
+    onKindChange: (SessionKind) -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     Scaffold(
@@ -97,11 +110,23 @@ fun WearTargetScreen(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 24.dp),
         ) {
-            item { ListHeader { Text("How many rounds?") } }
+            item {
+                ListHeader {
+                    Text(if (kind == SessionKind.CHANTING) "How many names?" else "How many rounds?")
+                }
+            }
+            items(SessionKind.entries) { option ->
+                Chip(
+                    onClick = { onKindChange(option) },
+                    label = { Text(option.label) },
+                    colors = if (kind == option) ChipDefaults.primaryChipColors() else ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth().testTag("kind_${option.name}"),
+                )
+            }
             items(counts) { target ->
                 Chip(
                     onClick = { onSelect(target) },
-                    label = { Text("$target rounds") },
+                    label = { Text("$target ${kind.unit}") },
                     colors = ChipDefaults.secondaryChipColors(),
                     modifier = Modifier.fillMaxWidth().testTag("preset_$target"),
                 )

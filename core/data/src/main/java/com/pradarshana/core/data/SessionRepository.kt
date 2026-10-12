@@ -11,6 +11,7 @@ import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionDetails
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionMerger
 import com.pradarshana.core.model.SessionSnapshot
 import com.pradarshana.core.model.SessionStatus
@@ -91,6 +92,8 @@ class SessionRepository(
     /** Most recent session title, or blank when there is no history or it was left unnamed. */
     suspend fun latestSessionTitle(): String = SessionDetails.normalizeTitle(dao.latestTitle().orEmpty())
 
+    suspend fun latestSessionKind(): SessionKind = SessionKind.fromStored(dao.latestKind())
+
     suspend fun suggestedCounts(): List<Int> = CommonCounts.suggest(dao.targetCountsNewestFirst())
 
     suspend fun startSession(
@@ -98,6 +101,7 @@ class SessionRepository(
         title: String = "",
         latitude: Double? = null,
         longitude: Double? = null,
+        kind: SessionKind = SessionKind.PRADARSHANA,
     ): StartResult {
         val validation = CounterRules.validateTarget(targetCount.toLong())
         if (validation !is CounterRules.TargetValidation.Valid) return StartResult.Invalid(validation)
@@ -130,6 +134,7 @@ class SessionRepository(
                     title = cleanTitle,
                     latitude = lat,
                     longitude = lng,
+                    kind = kind,
                 ),
             )
             dao.upsertDeviceCounts(listOf(DeviceCountEntity(id, deviceId, 0)))
@@ -258,6 +263,7 @@ class SessionRepository(
                         title = merged.title,
                         latitude = merged.latitude,
                         longitude = merged.longitude,
+                        kind = merged.kind,
                     ),
                 )
                 dao.upsertDeviceCounts(merged.deviceCounts.map { (device, count) -> DeviceCountEntity(merged.sessionId, device, count) })
@@ -339,6 +345,7 @@ internal fun SessionEntity.toSession() = PradarshanaSession(
     title = title,
     latitude = latitude,
     longitude = longitude,
+    kind = kind,
 )
 
 internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = SessionSnapshot(
@@ -355,4 +362,5 @@ internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = Session
     title = title,
     latitude = latitude,
     longitude = longitude,
+    kind = kind,
 )

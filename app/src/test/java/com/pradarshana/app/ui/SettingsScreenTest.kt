@@ -7,10 +7,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.settings.SettingsScreen
+import com.pradarshana.core.data.CountFeedbackPreferences
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.app.ui.theme.ThemeMode
 import com.pradarshana.app.ui.theme.ThemeStore
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,5 +52,33 @@ class SettingsScreenTest {
         compose.onNodeWithText("System").assertExists()
         compose.onNodeWithTag("theme_DARK").performClick()
         assertEquals(ThemeMode.DARK, chosen)
+    }
+
+    @Test
+    fun countVibrationIsOnUntilTurnedOff() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE)
+            .edit()
+            .remove(CountFeedbackPreferences.KEY_VIBRATE_ON_COUNT)
+            .commit()
+        val prefs = CountFeedbackPreferences(context)
+        assertTrue(prefs.vibrateOnCount.value)
+        var enabled = true
+        compose.setContent {
+            PradarshanaTheme {
+                SettingsScreen(
+                    mode = ThemeMode.SYSTEM,
+                    onMode = {},
+                    onBack = {},
+                    vibrateOnCount = enabled,
+                    onVibrateOnCount = { enabled = it },
+                )
+            }
+        }
+        compose.onNodeWithText("Vibrate on each count").assertExists()
+        compose.onNodeWithTag("vibrate_on_count").performClick()
+        assertFalse(enabled)
+        prefs.setVibrateOnCount(false)
+        assertFalse(CountFeedbackPreferences(context).vibrateOnCount.value)
     }
 }

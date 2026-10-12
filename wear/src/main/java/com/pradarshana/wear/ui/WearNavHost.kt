@@ -13,12 +13,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.location.FusedLocationCapture
 import com.pradarshana.core.data.location.hasLocationPermission
+import com.pradarshana.core.model.SessionKind
 
 @Composable
 private fun rememberStartWithLocation(onStart: (target: Int, captureLocation: Boolean) -> Unit): (Int) -> Unit {
@@ -40,7 +44,8 @@ private fun rememberStartWithLocation(onStart: (target: Int, captureLocation: Bo
 private object WearRoutes {
     const val HOME = "home"
     const val TARGET = "target"
-    const val CUSTOM = "custom"
+    const val CUSTOM = "custom/{kind}"
+    fun custom(kind: SessionKind) = "custom/${kind.name}"
     const val COUNTER = "counter/{id}"
     const val COMPLETION = "completion/{id}"
     fun counter(id: String) = "counter/$id"
@@ -62,18 +67,22 @@ fun WearNavHost(
 
     SwipeDismissableNavHost(navController = navController, startDestination = WearRoutes.HOME) {
         composable(WearRoutes.HOME) {
+            val feedback = (LocalContext.current.applicationContext as PradarshanaContainerOwner).container.countFeedback
+            val vibrateOnCount by feedback.vibrateOnCount.collectAsStateWithLifecycle()
             val vm = wearViewModel { WearHomeViewModel(it.repository) }
             val ongoing by vm.ongoing.collectAsStateWithLifecycle()
             WearHomeScreen(
                 ongoing = ongoing,
                 onResume = { navController.navigate(WearRoutes.counter(it)) },
                 onStart = { navController.navigate(WearRoutes.TARGET) },
+                vibrateOnCount = vibrateOnCount,
+                onToggleVibration = { feedback.setVibrateOnCount(!feedback.vibrateOnCount.value) },
             )
         }
         composable(WearRoutes.TARGET) {
             val context = LocalContext.current
             val vm = wearViewModel { WearHomeViewModel(it.repository, FusedLocationCapture(context.applicationContext)) }
-            val start = rememberStartWithLocation { target, allowed -> vm.start(target, allowed) }
+            val start = rememberStartWithLocation { target, allowed -> vm.start(target, allowed, vm.kind) }
             LaunchedEffect(vm) {
                 vm.started.collect { id ->
                     navController.navigate(WearRoutes.counter(id)) { popUpTo(WearRoutes.HOME) }
@@ -81,14 +90,20 @@ fun WearNavHost(
             }
             WearTargetScreen(
                 counts = vm.counts,
+                kind = vm.kind,
+                onKindChange = vm::onKindChange,
                 onSelect = start,
-                onCustom = { navController.navigate(WearRoutes.CUSTOM) },
+                onCustom = { navController.navigate(WearRoutes.custom(vm.kind)) },
             )
         }
-        composable(WearRoutes.CUSTOM) {
+        composable(
+            WearRoutes.CUSTOM,
+            arguments = listOf(navArgument("kind") { type = NavType.StringType }),
+        ) { entry ->
             val context = LocalContext.current
+            val kind = SessionKind.fromStored(entry.arguments?.getString("kind"))
             val vm = wearViewModel { WearHomeViewModel(it.repository, FusedLocationCapture(context.applicationContext)) }
-            val start = rememberStartWithLocation { target, allowed -> vm.start(target, allowed) }
+            val start = rememberStartWithLocation { target, allowed -> vm.start(target, allowed, kind) }
             LaunchedEffect(vm) {
                 vm.started.collect { id ->
                     navController.navigate(WearRoutes.counter(id)) { popUpTo(WearRoutes.HOME) }

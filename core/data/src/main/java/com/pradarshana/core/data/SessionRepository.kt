@@ -94,6 +94,13 @@ class SessionRepository(
 
     suspend fun latestSessionKind(): SessionKind = SessionKind.fromStored(dao.latestKind())
 
+    /** Most recent target for this kind, or null when that kind has never been started. */
+    suspend fun latestTargetFor(kind: SessionKind): Int? = dao.latestTargetForKind(kind.name)
+
+    /** Most recent title for this kind. Blank when there is no such session or it was unnamed. */
+    suspend fun latestTitleFor(kind: SessionKind): String =
+        SessionDetails.normalizeTitle(dao.latestTitleForKind(kind.name).orEmpty())
+
     suspend fun suggestedCounts(): List<Int> = CommonCounts.suggest(dao.targetCountsNewestFirst())
 
     suspend fun startSession(

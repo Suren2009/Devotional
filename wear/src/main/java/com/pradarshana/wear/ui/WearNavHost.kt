@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +24,7 @@ import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.location.FusedLocationCapture
 import com.pradarshana.core.data.location.hasLocationPermission
 import com.pradarshana.core.model.SessionKind
+import com.pradarshana.wear.tile.QuickStart
 
 @Composable
 private fun rememberStartWithLocation(onStart: (target: Int, captureLocation: Boolean) -> Unit): (Int) -> Unit {
@@ -55,13 +57,30 @@ private object WearRoutes {
 @Composable
 fun WearNavHost(
     repository: SessionRepository,
+    quickStartToken: Int = 0,
     navController: NavHostController = rememberSwipeDismissableNavController(),
 ) {
     var restoreChecked by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    var handledQuickStart by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(quickStartToken) {
         if (!restoreChecked) {
             restoreChecked = true
-            repository.getOngoingSession()?.let { navController.navigate(WearRoutes.counter(it.id)) }
+            handledQuickStart = quickStartToken
+            val id = if (quickStartToken > 0) {
+                QuickStart.startOrResume(repository)
+            } else {
+                repository.getOngoingSession()?.id
+            }
+            if (id != null) navController.navigate(WearRoutes.counter(id))
+            return@LaunchedEffect
+        }
+        if (quickStartToken > 0 && quickStartToken != handledQuickStart) {
+            handledQuickStart = quickStartToken
+            val id = QuickStart.startOrResume(repository)
+            navController.navigate(WearRoutes.counter(id)) {
+                popUpTo(WearRoutes.HOME)
+                launchSingleTop = true
+            }
         }
     }
 

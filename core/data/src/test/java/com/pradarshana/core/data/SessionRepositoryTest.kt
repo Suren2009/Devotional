@@ -262,4 +262,16 @@ class SessionRepositoryTest {
         assertEquals(SessionKind.CHANTING, repo.latestSessionKind())
         assertEquals(SessionKind.PRADARSHANA, repo.getSession(repo.observeHistory().first().last().id)!!.kind)
     }
+
+    @Test
+    fun latestWalkTargetAndTitleIgnoreChanting() = runTest {
+        assertNull(repo.latestTargetFor(SessionKind.PRADARSHANA))
+        assertEquals("", repo.latestTitleFor(SessionKind.PRADARSHANA))
+        start(54, title = "Kapaleeshwarar")
+        clock.advance(1_000)
+        start(11, title = "Sahasranama", kind = SessionKind.CHANTING)
+        assertEquals(54, repo.latestTargetFor(SessionKind.PRADARSHANA))
+        assertEquals("Kapaleeshwarar", repo.latestTitleFor(SessionKind.PRADARSHANA))
+        assertEquals(11, repo.latestTargetFor(SessionKind.CHANTING))
+    }
 }

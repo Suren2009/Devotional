@@ -27,6 +27,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 
 **Wear OS watch**
 - Home: app name, *Start Pradarshana*, and *Resume* when a session exists.
+- A **Start Pradarshana** tile for the watch face. Add it from the tiles list (press and hold the watch face, then tiles). One tap resumes the session already in progress, or starts a Pradarshana using the latest walk's target and title. The first one uses 108 rounds. The tile does not ask for a place; start from the app when the location should be saved.
 - Choice of Pradarshana or Chanting, then the same common counts as the phone, plus a custom value (on-screen stepper or rotating crown).
 - Counting screen for round displays: large count, target and remaining, progress arc, a large **+** button and
   Pause/Resume. *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk

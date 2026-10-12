@@ -188,6 +188,13 @@ fun WearCounterScreen(
                     },
                 ) {
                     Text(
+                        session.kind.countHeading,
+                        style = MaterialTheme.typography.caption2,
+                        color = MaterialTheme.colors.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.testTag("wear_count_heading"),
+                    )
+                    Text(
                         "${session.completedCount}",
                         fontSize = 44.sp,
                         fontWeight = FontWeight.SemiBold,

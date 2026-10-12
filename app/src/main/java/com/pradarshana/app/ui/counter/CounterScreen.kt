@@ -218,6 +218,13 @@ fun CounterScreen(
                     ProgressRing(progress = session.progressFraction, modifier = Modifier.fillMaxSize())
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
+                            session.kind.countHeading,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.testTag("count_heading"),
+                        )
+                        Text(
                             session.completedCount.toString(),
                             style = CounterNumberStyle,
                             color = MaterialTheme.colorScheme.onBackground,

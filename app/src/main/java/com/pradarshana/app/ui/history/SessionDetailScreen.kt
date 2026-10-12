@@ -91,6 +91,12 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
             ) {
                 ProgressRing(session.progressFraction, Modifier.fillMaxSize(), strokeWidth = 10.dp)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        session.kind.countHeading,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                     Text("${session.completedCount}", style = MaterialTheme.typography.displayMedium)
                     Text("of ${session.targetCount}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -125,7 +131,7 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                     DetailRow("Date", Formatting.date(session.startTime))
                     DetailRow("Started", Formatting.time(session.startTime))
                     DetailRow("Ended", session.endTime?.let(Formatting::time) ?: "—")
-                    DetailRow("Duration", DurationFormat.format(session.durationMillis()))
+                    DetailRow("Total time", DurationFormat.format(session.durationMillis()))
                     DetailRow("Target ${session.kind.unit}", session.targetCount.toString())
                     DetailRow("Completed ${session.kind.unit}", session.completedCount.toString())
                     DetailRow("Remaining ${session.kind.unit}", session.remainingCount.toString())

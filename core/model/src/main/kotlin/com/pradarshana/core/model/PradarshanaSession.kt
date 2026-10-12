@@ -17,6 +17,9 @@ data class PradarshanaSession(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val kind: SessionKind = SessionKind.PRADARSHANA,
+    /** Time spent paused, already closed. An open pause is measured from [statusUpdatedAt]. */
+    val pausedMillis: Long = 0,
+    val statusUpdatedAt: Long = lastUpdatedTime,
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
@@ -24,6 +27,7 @@ data class PradarshanaSession(
         require(status != SessionStatus.COMPLETED || completedCount == targetCount) {
             "A completed session must have completedCount == targetCount"
         }
+        require(pausedMillis >= 0) { "pausedMillis must not be negative" }
         require(title == SessionDetails.normalizeTitle(title)) { "title must be normalized" }
         val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
         require(lat == latitude && lng == longitude) { "location must be a valid pair or absent" }
@@ -41,9 +45,17 @@ data class PradarshanaSession(
 
     val canIncrement: Boolean get() = CounterRules.canIncrement(status, targetCount, completedCount)
 
-    /** Wall-clock duration; ongoing sessions are measured up to [now]. */
+    /**
+     * Time from the start to the end, leaving out every pause.
+     * Ongoing sessions are measured up to [now]. A pause still in progress is not counted.
+     */
     fun durationMillis(now: Long = System.currentTimeMillis()): Long {
         val end = endTime ?: if (status.isTerminal) lastUpdatedTime else now
-        return (end - startTime).coerceAtLeast(0)
+        val openPause = if (status == SessionStatus.PAUSED && endTime == null) {
+            (now - statusUpdatedAt).coerceAtLeast(0)
+        } else {
+            0
+        }
+        return (end - startTime - pausedMillis - openPause).coerceAtLeast(0)
     }
 }

@@ -111,13 +111,13 @@ fun CompletionScreen(
                     ) {
                         Summary("Completed", session.completedCount.toString())
                         Summary("Target", session.targetCount.toString())
-                        Summary("Duration", DurationFormat.format(session.durationMillis()))
+                        Summary("Total time", DurationFormat.format(session.durationMillis()))
                     }
                 }
-                session.endTime?.let {
+                session.endTime?.let { end ->
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        Formatting.dateTime(it),
+                        "From ${Formatting.time(session.startTime)} to ${Formatting.time(end)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

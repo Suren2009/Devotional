@@ -33,6 +33,8 @@ data class SessionEntity(
     val longitude: Double?,
     /** Pradarshana or chanting. Older sessions are pradakshina walks. */
     @ColumnInfo(name = "kind", defaultValue = "'PRADARSHANA'") val kind: SessionKind,
+    /** Closed pauses only. The pause still running is measured from [statusUpdatedAt]. */
+    @ColumnInfo(name = "paused_millis", defaultValue = "0") val pausedMillis: Long = 0,
 )
 
 /** One G-Counter entry: the number of rounds counted on [deviceId] for a session. */

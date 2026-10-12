@@ -274,4 +274,19 @@ class SessionRepositoryTest {
         assertEquals("Kapaleeshwarar", repo.latestTitleFor(SessionKind.PRADARSHANA))
         assertEquals(11, repo.latestTargetFor(SessionKind.CHANTING))
     }
+
+    @Test
+    fun totalTimeIgnoresTheGapBetweenPauseAndResume() = runTest {
+        val id = start(3)
+        clock.advance(5_000)
+        assertTrue(repo.pause(id))
+        clock.advance(20_000)
+        assertTrue(repo.resume(id))
+        clock.advance(5_000)
+        repeat(3) { repo.increment(id) }
+        val session = repo.getSession(id)!!
+        assertEquals(SessionStatus.COMPLETED, session.status)
+        assertEquals(10_000, session.durationMillis())
+        assertEquals(session.startTime + 30_000, session.endTime)
+    }
 }

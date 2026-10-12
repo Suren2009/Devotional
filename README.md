@@ -12,15 +12,16 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
 - An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
-- Counting screen: the temple mandala for a Pradarshana, or a japa mala while chanting, with a large completed count, target, remaining, percentage and progress ring, a large **+** button,
+- Counting screen: the temple mandala for a Pradarshana, or a japa mala while chanting, with a large completed count. A walk is headed **Total rounds**. Chanting is headed **No. of times chanting**. Target, remaining, percentage and progress ring, a large **+** button,
   Pause/Resume, and End Session with a confirmation dialog. Each + can give a short 70 ms vibration
   (on by default, and switched off in Settings), and reaching the target vibrates for half a second.
   After two taps on **+**, the screen can turn black except that button, to save battery. This is on by
   default and can be turned off in Settings (and on the watch home screen). Double-tap anywhere else to
   bring the count back. Finishing the session shows the normal completion screen. The screen stays on
   while a session is active.
-- Automatic completion screen ("Pradarshana Completed!") with final count, target, duration and a gentle radiance animation.
-- History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, duration and status (Completed / Incomplete),
+- Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
+- **Ask Baba** on the phone. Think of one question, enter a number from 1 to 720, and read original guidance in English and Telugu. A Sai Baba picture is chosen from five, with Faith and Preserve moving beside it.
+- History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, total time and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
   History is never deleted automatically.
 - Settings for a light theme, a dark theme, or the phone’s system theme, in a saffron, cream and muted gold palette.
@@ -29,7 +30,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - Home: app name, *Start Pradarshana*, and *Resume* when a session exists.
 - A **Start Pradarshana** tile for the watch face. Add it from the tiles list (press and hold the watch face, then tiles). One tap resumes the session already in progress, or starts a Pradarshana using the latest walk's target and title. The first one uses 108 rounds. The tile does not ask for a place; start from the app when the location should be saved.
 - Choice of Pradarshana or Chanting, then the same common counts as the phone, plus a custom value (on-screen stepper or rotating crown).
-- Counting screen for round displays: large count, target and remaining, progress arc, a large **+** button and
+- Counting screen for round displays: large count under **Total rounds**, or **No. of times chanting** for a chant, target and remaining, progress arc, a large **+** button and
   Pause/Resume. *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk
   cannot end the session. After two taps on **+**, the watch can turn black except that button. This is on by
   default. Double-tap elsewhere to bring the count back, or finish the session to see the completion screen.

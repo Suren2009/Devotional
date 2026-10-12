@@ -86,6 +86,27 @@ class SessionMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun version4SessionsKeepTheirHistoryWhenPauseTimeIsAdded() {
+        helper.createDatabase("migrate-v4.db", 4).apply {
+            execSQL(
+                """INSERT INTO sessions (id, target_count, completed_count, start_time, end_time, status,
+                   status_updated_at, status_updated_by, last_updated_time, origin_device_id, local_version,
+                   synced_version, title, kind)
+                   VALUES ('s1', 108, 108, 1, 61, 'COMPLETED', 61, 'phone', 61, 'phone', 1, 1, 'Temple', 'PRADARSHANA')""",
+            )
+            close()
+        }
+        val migrated = helper.runMigrationsAndValidate("migrate-v4.db", 5, true, PradarshanaDatabase.MIGRATION_4_5)
+        migrated.query("SELECT title, completed_count, paused_millis FROM sessions WHERE id = 's1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Temple", cursor.getString(0))
+            assertEquals(108, cursor.getInt(1))
+            assertEquals(0, cursor.getLong(2))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DB_NAME = "migrate-v1.db"
     }

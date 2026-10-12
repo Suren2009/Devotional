@@ -148,6 +148,27 @@ class CounterScreenTest {
     }
 
     @Test
+    fun chantingCountHeadingReplacesTotalRounds() {
+        val session = PradarshanaSession(
+            "s",
+            108,
+            2,
+            0,
+            null,
+            SessionStatus.ACTIVE,
+            0,
+            kind = com.pradarshana.core.model.SessionKind.CHANTING,
+        )
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(session, {}, {}, {}, {})
+            }
+        }
+        compose.onNodeWithTag("count_heading", useUnmergedTree = true).assertTextEquals("No. of times chanting")
+        compose.onNodeWithText("Total rounds").assertDoesNotExist()
+    }
+
+    @Test
     fun pauseDisablesCountingAndResumeEnablesIt() {
         val id = showCounter(10)
         compose.onNodeWithTag("pause_button").performClick()

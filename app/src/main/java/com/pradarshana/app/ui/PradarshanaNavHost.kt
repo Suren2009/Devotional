@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.pradarshana.app.ui.ask.AskBabaRoute
 import com.pradarshana.app.ui.completion.CompletionRoute
 import com.pradarshana.app.ui.counter.CounterRoute
 import com.pradarshana.app.ui.history.HistoryRoute
@@ -29,6 +30,7 @@ object Routes {
     const val HISTORY = "history"
     const val DETAIL = "history/{id}"
     const val SETTINGS = "settings"
+    const val ASK = "ask"
 
     fun counter(id: String) = "counter/$id"
     fun completion(id: String) = "completion/$id"
@@ -58,6 +60,7 @@ fun PradarshanaNavHost(
                 onResume = { navController.navigate(Routes.counter(it)) },
                 onHistory = { navController.navigate(Routes.HISTORY) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
+                onAskBaba = { navController.navigate(Routes.ASK) },
             )
         }
         composable(Routes.START) {
@@ -99,6 +102,9 @@ fun PradarshanaNavHost(
         }
         composable(Routes.SETTINGS) {
             SettingsRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.ASK) {
+            AskBabaRoute(onBack = { navController.popBackStack() })
         }
         composable(Routes.HISTORY) {
             HistoryRoute(

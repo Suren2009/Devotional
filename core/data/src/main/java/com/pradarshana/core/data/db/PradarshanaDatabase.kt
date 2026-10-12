@@ -28,7 +28,7 @@ abstract class PradarshanaDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
     companion object {
-        const val VERSION = 4
+        const val VERSION = 5
         const val NAME = "pradarshana.db"
 
         /**
@@ -63,7 +63,14 @@ abstract class PradarshanaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        /** Older sessions have no recorded pauses, so their total time stays start to end. */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN paused_millis INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         fun create(context: Context, name: String? = NAME): PradarshanaDatabase {
             val builder = if (name == null) {

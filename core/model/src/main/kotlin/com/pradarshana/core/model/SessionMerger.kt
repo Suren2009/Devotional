@@ -35,6 +35,7 @@ object SessionMerger {
             title = SessionDetails.mergeTitle(local.title, remote.title),
             latitude = latitude,
             longitude = longitude,
+            pausedMillis = maxOf(local.pausedMillis, remote.pausedMillis),
         )
         val merged = resolveStatus(base, local, remote)
         return Result(

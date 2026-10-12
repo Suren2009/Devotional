@@ -26,10 +26,12 @@ data class SessionSnapshot(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val kind: SessionKind = SessionKind.PRADARSHANA,
+    val pausedMillis: Long = 0,
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
         require(deviceCounts.values.all { it >= 0 }) { "device counts must not be negative" }
+        require(pausedMillis >= 0) { "pausedMillis must not be negative" }
         require(title == SessionDetails.normalizeTitle(title)) { "title must be normalized" }
         val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
         require(lat == latitude && lng == longitude) { "location must be a valid pair or absent" }
@@ -51,5 +53,7 @@ data class SessionSnapshot(
         latitude = latitude,
         longitude = longitude,
         kind = kind,
+        pausedMillis = pausedMillis,
+        statusUpdatedAt = statusUpdatedAt,
     )
 }

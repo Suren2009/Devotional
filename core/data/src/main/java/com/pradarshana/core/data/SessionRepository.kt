@@ -271,6 +271,7 @@ class SessionRepository(
                         latitude = merged.latitude,
                         longitude = merged.longitude,
                         kind = merged.kind,
+                        pausedMillis = merged.pausedMillis,
                     ),
                 )
                 dao.upsertDeviceCounts(merged.deviceCounts.map { (device, count) -> DeviceCountEntity(merged.sessionId, device, count) })
@@ -306,6 +307,11 @@ class SessionRepository(
             val session = dao.getSession(sessionId) ?: return@write false
             if (session.status.isTerminal || session.status == status) return@write false
             val now = clock.now()
+            val closedPause = if (session.status == SessionStatus.PAUSED) {
+                (now - session.statusUpdatedAt).coerceAtLeast(0)
+            } else {
+                0
+            }
             dao.upsertSession(
                 session.copy(
                     status = status,
@@ -313,6 +319,7 @@ class SessionRepository(
                     statusUpdatedBy = deviceId,
                     lastUpdatedTime = now,
                     localVersion = session.localVersion + 1,
+                    pausedMillis = session.pausedMillis + closedPause,
                 ),
             )
             true
@@ -321,14 +328,18 @@ class SessionRepository(
         return changed
     }
 
-    private fun SessionEntity.cancelled(now: Long) = copy(
-        status = SessionStatus.CANCELLED,
-        endTime = now,
-        statusUpdatedAt = now,
-        statusUpdatedBy = deviceId,
-        lastUpdatedTime = now,
-        localVersion = localVersion + 1,
-    )
+    private fun SessionEntity.cancelled(now: Long): SessionEntity {
+        val closedPause = if (status == SessionStatus.PAUSED) (now - statusUpdatedAt).coerceAtLeast(0) else 0
+        return copy(
+            status = SessionStatus.CANCELLED,
+            endTime = now,
+            statusUpdatedAt = now,
+            statusUpdatedBy = deviceId,
+            lastUpdatedTime = now,
+            localVersion = localVersion + 1,
+            pausedMillis = pausedMillis + closedPause,
+        )
+    }
 
     private suspend fun <T> write(block: suspend () -> T): T = writeLock.withLock { db.withTransaction { block() } }
 
@@ -353,6 +364,8 @@ internal fun SessionEntity.toSession() = PradarshanaSession(
     latitude = latitude,
     longitude = longitude,
     kind = kind,
+    pausedMillis = pausedMillis,
+    statusUpdatedAt = statusUpdatedAt,
 )
 
 internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = SessionSnapshot(
@@ -370,4 +383,5 @@ internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = Session
     latitude = latitude,
     longitude = longitude,
     kind = kind,
+    pausedMillis = pausedMillis,
 )

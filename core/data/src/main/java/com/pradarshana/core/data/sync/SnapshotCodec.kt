@@ -30,6 +30,7 @@ object SnapshotCodec {
     private const val KEY_LATITUDE = "latitude"
     private const val KEY_LONGITUDE = "longitude"
     private const val KEY_KIND = "kind"
+    private const val KEY_PAUSED = "paused_millis"
 
     fun write(map: DataMap, snapshot: SessionSnapshot, sourceDeviceId: String) {
         map.putInt(KEY_SCHEMA, SCHEMA_VERSION)
@@ -58,6 +59,7 @@ object SnapshotCodec {
             map.putDouble(KEY_LONGITUDE, longitude)
         }
         map.putString(KEY_KIND, snapshot.kind.name)
+        map.putLong(KEY_PAUSED, snapshot.pausedMillis)
     }
 
     /** Returns null for malformed or newer-schema payloads instead of throwing. */
@@ -89,6 +91,7 @@ object SnapshotCodec {
                 latitude = latitude,
                 longitude = longitude,
                 kind = SessionKind.fromStored(map.getString(KEY_KIND)),
+                pausedMillis = if (map.containsKey(KEY_PAUSED)) map.getLong(KEY_PAUSED) else 0L,
             ),
         )
     }.getOrNull()

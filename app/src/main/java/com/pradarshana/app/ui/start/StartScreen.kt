@@ -34,8 +34,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -51,7 +54,11 @@ import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.StartResult
+import com.pradarshana.core.data.location.FusedLocationCapture
+import com.pradarshana.core.data.location.LocationCapture
+import com.pradarshana.core.data.location.hasLocationPermission
 import com.pradarshana.core.model.CounterRules
+import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.CounterRules.TargetValidation
 import com.pradarshana.core.model.PradarshanaSession
 import kotlinx.coroutines.channels.Channel
@@ -62,7 +69,12 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class StartViewModel(private val repository: SessionRepository) : ViewModel() {
+class StartViewModel(
+    private val repository: SessionRepository,
+    private val locationCapture: LocationCapture = LocationCapture { null },
+) : ViewModel() {
+    var title by mutableStateOf("")
+        private set
     var input by mutableStateOf("")
         private set
     var error by mutableStateOf<String?>(null)
@@ -75,18 +87,23 @@ class StartViewModel(private val repository: SessionRepository) : ViewModel() {
     private val _started = Channel<String>(Channel.BUFFERED)
     val started: Flow<String> = _started.receiveAsFlow()
 
+    fun onTitleChange(value: String) {
+        title = value.take(SessionDetails.MAX_TITLE_LENGTH)
+    }
+
     fun onInputChange(value: String) {
         input = value.filter { it.isDigit() }.take(6)
         error = null
     }
 
-    fun start() {
+    fun start(captureLocation: Boolean = false) {
         if (starting) return
         when (val validation = CounterRules.validateTarget(input)) {
             is TargetValidation.Valid -> {
                 starting = true
                 viewModelScope.launch {
-                    when (val result = repository.startSession(validation.target)) {
+                    val fix = if (captureLocation) runCatching { locationCapture.capture() }.getOrNull() else null
+                    when (val result = repository.startSession(validation.target, title, fix?.latitude, fix?.longitude)) {
                         is StartResult.Started -> _started.send(result.sessionId)
                         is StartResult.Invalid -> error = messageFor(result.reason)
                     }
@@ -112,15 +129,24 @@ val PresetTargets = listOf(3, 7, 11, 21, 51, 108)
 
 @Composable
 fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
-    val vm = appViewModel { StartViewModel(it.repository) }
+    val context = LocalContext.current
+    val vm = appViewModel { StartViewModel(it.repository, FusedLocationCapture(context.applicationContext)) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        vm.start(granted || context.hasLocationPermission())
+    }
     LaunchedEffect(vm) { vm.started.collect(onStarted) }
     StartScreen(
+        title = vm.title,
         input = vm.input,
         error = vm.error,
         ongoing = ongoing,
+        onTitleChange = vm::onTitleChange,
         onInputChange = vm::onInputChange,
-        onStart = vm::start,
+        onStart = {
+            if (context.hasLocationPermission()) vm.start(captureLocation = true)
+            else permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        },
         onBack = onBack,
     )
 }
@@ -134,6 +160,8 @@ fun StartScreen(
     onInputChange: (String) -> Unit,
     onStart: () -> Unit,
     onBack: () -> Unit,
+    title: String = "",
+    onTitleChange: (String) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -162,6 +190,19 @@ fun StartScreen(
         ) {
             Text("How many rounds will you walk?", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(20.dp))
+            OutlinedTextField(
+                value = title,
+                onValueChange = onTitleChange,
+                label = { Text("Title") },
+                placeholder = { Text(SessionDetails.UNTITLED) },
+                supportingText = { Text("Optional. Leave blank to save as ${SessionDetails.UNTITLED}.") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("title_input"),
+            )
+            Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = input,
                 onValueChange = onInputChange,
@@ -197,7 +238,13 @@ fun StartScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "If you allow location, this place is saved so you can open it on a map from history. You can decline and still count.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onStart,
                 modifier = Modifier

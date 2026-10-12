@@ -9,6 +9,8 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 **Phone**
 - Home screen with *Start Pradarshana*, *Pradarshana History*, and a *Resume* card while a session is in progress.
 - Target entry with validation (must be a whole number from 1 to 100,000) and quick picks (3, 7, 11, 21, 51, 108).
+- An optional title. A session with no title is shown as **Untitled**.
+- The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
 - Counting screen: large completed count, target, remaining, percentage and progress ring, a large **+** button,
   Pause/Resume, and End Session with a confirmation dialog. Subtle haptic tick on every round; the screen stays on
   while a session is active.

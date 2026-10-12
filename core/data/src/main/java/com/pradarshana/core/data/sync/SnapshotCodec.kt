@@ -1,6 +1,7 @@
 package com.pradarshana.core.data.sync
 
 import com.google.android.gms.wearable.DataMap
+import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.SessionSnapshot
 import com.pradarshana.core.model.SessionStatus
 
@@ -23,6 +24,10 @@ object SnapshotCodec {
     private const val KEY_ORIGIN = "origin_device"
     private const val KEY_COUNT_DEVICES = "count_devices"
     private const val KEY_COUNT_VALUES = "count_values"
+    private const val KEY_TITLE = "title"
+    private const val KEY_HAS_LOCATION = "has_location"
+    private const val KEY_LATITUDE = "latitude"
+    private const val KEY_LONGITUDE = "longitude"
 
     fun write(map: DataMap, snapshot: SessionSnapshot, sourceDeviceId: String) {
         map.putInt(KEY_SCHEMA, SCHEMA_VERSION)
@@ -42,6 +47,14 @@ object SnapshotCodec {
         val entries = snapshot.deviceCounts.entries.sortedBy { it.key }
         map.putStringArray(KEY_COUNT_DEVICES, entries.map { it.key }.toTypedArray())
         map.putIntegerArrayList(KEY_COUNT_VALUES, ArrayList(entries.map { it.value }))
+        map.putString(KEY_TITLE, snapshot.title)
+        val latitude = snapshot.latitude
+        val longitude = snapshot.longitude
+        map.putBoolean(KEY_HAS_LOCATION, latitude != null && longitude != null)
+        if (latitude != null && longitude != null) {
+            map.putDouble(KEY_LATITUDE, latitude)
+            map.putDouble(KEY_LONGITUDE, longitude)
+        }
     }
 
     /** Returns null for malformed or newer-schema payloads instead of throwing. */
@@ -51,6 +64,11 @@ object SnapshotCodec {
         val values = map.getIntegerArrayList(KEY_COUNT_VALUES) ?: return null
         if (devices.size != values.size) return null
         val endTime = map.getLong(KEY_END, -1L).takeIf { it >= 0 }
+        val (latitude, longitude) = if (map.getBoolean(KEY_HAS_LOCATION, false)) {
+            SessionDetails.normalizeLocation(map.getDouble(KEY_LATITUDE), map.getDouble(KEY_LONGITUDE))
+        } else {
+            null to null
+        }
         RemoteSnapshot(
             sourceDeviceId = map.getString(KEY_SOURCE) ?: return null,
             snapshot = SessionSnapshot(
@@ -64,6 +82,9 @@ object SnapshotCodec {
                 lastUpdatedTime = map.getLong(KEY_UPDATED),
                 originDeviceId = map.getString(KEY_ORIGIN) ?: return null,
                 deviceCounts = devices.zip(values).toMap(),
+                title = SessionDetails.normalizeTitle(map.getString(KEY_TITLE) ?: ""),
+                latitude = latitude,
+                longitude = longitude,
             ),
         )
     }.getOrNull()

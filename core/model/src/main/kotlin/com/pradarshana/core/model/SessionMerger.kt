@@ -23,9 +23,18 @@ object SessionMerger {
 
         val counts = mergeCounts(local.deviceCounts, remote.deviceCounts)
         // Session identity fields are immutable after creation; the local copy is authoritative.
+        val (latitude, longitude) = SessionDetails.mergeLocation(
+            local.latitude,
+            local.longitude,
+            remote.latitude,
+            remote.longitude,
+        )
         val base = local.copy(
             deviceCounts = counts,
             lastUpdatedTime = maxOf(local.lastUpdatedTime, remote.lastUpdatedTime),
+            title = SessionDetails.mergeTitle(local.title, remote.title),
+            latitude = latitude,
+            longitude = longitude,
         )
         val merged = resolveStatus(base, local, remote)
         return Result(

@@ -59,7 +59,7 @@ class StartAndHistoryScreenTest {
                     error = vm.error,
                     ongoing = null,
                     onInputChange = vm::onInputChange,
-                    onStart = vm::start,
+                    onStart = { vm.start() },
                     onBack = {},
                 )
             }
@@ -94,9 +94,19 @@ class StartAndHistoryScreenTest {
         compose.setContent {
             PradarshanaTheme {
                 LaunchedEffect(vm) { vm.started.collect { startedId = it } }
-                StartScreen(vm.input, vm.error, null, vm::onInputChange, vm::start, onBack = {})
+                StartScreen(
+                    input = vm.input,
+                    error = vm.error,
+                    ongoing = null,
+                    onInputChange = vm::onInputChange,
+                    onStart = { vm.start() },
+                    onBack = {},
+                    title = vm.title,
+                    onTitleChange = vm::onTitleChange,
+                )
             }
         }
+        compose.onNodeWithTag("title_input").performTextInput("Kapaleeshwarar")
         compose.onNodeWithContentDescription("108 rounds").performClick()
         compose.onNodeWithTag("confirm_start_button").performClick()
         compose.waitUntilReal { startedId != null }
@@ -105,6 +115,8 @@ class StartAndHistoryScreenTest {
         assertEquals(108, session!!.targetCount)
         assertEquals(0, session.completedCount)
         assertEquals(SessionStatus.ACTIVE, session.status)
+        assertEquals("Kapaleeshwarar", session.title)
+        assertEquals(false, session.hasLocation)
     }
 
     @Test
@@ -124,20 +136,34 @@ class StartAndHistoryScreenTest {
     fun historyListsSessionsWithStatusAndClearsAfterConfirmation() {
         var cleared = false
         var opened: String? = null
+        var mapped: String? = null
         val sessions = listOf(
-            PradarshanaSession("new", 108, 108, 2_000_000, 2_600_000, SessionStatus.COMPLETED, 2_600_000),
+            PradarshanaSession(
+                "new", 108, 108, 2_000_000, 2_600_000, SessionStatus.COMPLETED, 2_600_000,
+                title = "Kapaleeshwarar", latitude = 13.033, longitude = 80.270,
+            ),
             PradarshanaSession("old", 21, 9, 1_000_000, 1_300_000, SessionStatus.CANCELLED, 1_300_000),
         )
         compose.setContent {
             PradarshanaTheme {
-                HistoryScreen(sessions, onBack = {}, onOpen = { opened = it }, onClear = { cleared = true })
+                HistoryScreen(
+                    sessions,
+                    onBack = {},
+                    onOpen = { opened = it },
+                    onClear = { cleared = true },
+                    onShowMap = { mapped = it.id },
+                )
             }
         }
+        compose.onNodeWithText("Kapaleeshwarar").assertExists()
+        compose.onNodeWithText("Untitled").assertExists()
         compose.onNodeWithText("Completed").assertExists()
         compose.onNodeWithText("Incomplete").assertExists()
         compose.onNodeWithText(" / 108 rounds").assertExists()
         compose.onNodeWithText("10m 00s").assertExists()
 
+        compose.onNodeWithTag("show_on_map_new").performClick()
+        assertEquals("new", mapped)
         compose.onNode(hasText(" / 21 rounds"), useUnmergedTree = true).performClick()
         assertEquals("old", opened)
 

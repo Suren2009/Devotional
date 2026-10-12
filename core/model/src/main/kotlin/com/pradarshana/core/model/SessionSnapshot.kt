@@ -22,10 +22,16 @@ data class SessionSnapshot(
     val lastUpdatedTime: Long,
     val originDeviceId: String,
     val deviceCounts: Map<String, Int>,
+    val title: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
         require(deviceCounts.values.all { it >= 0 }) { "device counts must not be negative" }
+        require(title == SessionDetails.normalizeTitle(title)) { "title must be normalized" }
+        val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
+        require(lat == latitude && lng == longitude) { "location must be a valid pair or absent" }
     }
 
     val completedCount: Int get() = CounterRules.mergedCount(targetCount, deviceCounts)
@@ -40,5 +46,8 @@ data class SessionSnapshot(
         endTime = endTime,
         status = status,
         lastUpdatedTime = lastUpdatedTime,
+        title = title,
+        latitude = latitude,
+        longitude = longitude,
     )
 }

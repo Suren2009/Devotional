@@ -91,6 +91,8 @@ fun CompletionScreen(
                         .testTag("completion_title"),
                 )
                 Spacer(Modifier.height(6.dp))
+                Text(session.displayTitle, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(4.dp))
                 Text(
                     "May your devotion bring you peace.",
                     style = MaterialTheme.typography.bodyLarge,

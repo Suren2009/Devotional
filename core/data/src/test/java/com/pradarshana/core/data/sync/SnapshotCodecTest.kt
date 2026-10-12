@@ -25,6 +25,9 @@ class SnapshotCodecTest {
         lastUpdatedTime = 200,
         originDeviceId = "phone-1",
         deviceCounts = sortedMapOf("phone-1" to 20, "watch-1" to 7),
+        title = "Meenakshi",
+        latitude = 9.9195,
+        longitude = 78.1193,
     )
 
     @Test

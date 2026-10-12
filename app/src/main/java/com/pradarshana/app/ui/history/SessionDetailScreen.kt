@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -40,6 +43,7 @@ import com.pradarshana.app.ui.components.ProgressRing
 import com.pradarshana.app.ui.session.SessionViewModel
 import com.pradarshana.core.model.DurationFormat
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionDetails
 
 @Composable
 fun SessionDetailRoute(sessionId: String, onBack: () -> Unit) {
@@ -66,6 +70,7 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
         },
     ) { padding ->
         if (session == null) return@Scaffold
+        val context = LocalContext.current
         Column(
             Modifier
                 .fillMaxSize()
@@ -90,13 +95,29 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(12.dp))
+            Text(
+                session.displayTitle,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
             StatusChip(session.status)
+            if (session.hasLocation) {
+                Spacer(Modifier.height(16.dp))
+                SessionMapPreview(session)
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { openSessionInMaps(context, session) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Show on map")
+                }
+            }
             Spacer(Modifier.height(20.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    DetailRow("Title", session.displayTitle)
+                    DetailRow("Place", placeLabel(session))
                     DetailRow("Date", Formatting.date(session.startTime))
                     DetailRow("Started", Formatting.time(session.startTime))
                     DetailRow("Ended", session.endTime?.let(Formatting::time) ?: "—")
@@ -109,6 +130,17 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun placeLabel(session: PradarshanaSession): String {
+    val latitude = session.latitude
+    val longitude = session.longitude
+    return if (latitude != null && longitude != null) {
+        SessionDetails.formatLocation(latitude, longitude)
+    } else {
+        "Not saved"
     }
 }
 

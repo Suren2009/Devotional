@@ -8,6 +8,7 @@ import com.pradarshana.core.data.db.PradarshanaDatabase
 import com.pradarshana.core.data.db.SessionEntity
 import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.SessionMerger
 import com.pradarshana.core.model.SessionSnapshot
 import com.pradarshana.core.model.SessionStatus
@@ -85,9 +86,16 @@ class SessionRepository(
 
     suspend fun getOngoingSession(): PradarshanaSession? = dao.getOngoingSessions().firstOrNull()?.toSession()
 
-    suspend fun startSession(targetCount: Int): StartResult {
+    suspend fun startSession(
+        targetCount: Int,
+        title: String = "",
+        latitude: Double? = null,
+        longitude: Double? = null,
+    ): StartResult {
         val validation = CounterRules.validateTarget(targetCount.toLong())
         if (validation !is CounterRules.TargetValidation.Valid) return StartResult.Invalid(validation)
+        val cleanTitle = SessionDetails.normalizeTitle(title)
+        val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
 
         val now = clock.now()
         val id = idGenerator()
@@ -112,6 +120,9 @@ class SessionRepository(
                     originDeviceId = deviceId,
                     localVersion = 1,
                     syncedVersion = 0,
+                    title = cleanTitle,
+                    latitude = lat,
+                    longitude = lng,
                 ),
             )
             dao.upsertDeviceCounts(listOf(DeviceCountEntity(id, deviceId, 0)))
@@ -225,6 +236,9 @@ class SessionRepository(
                         originDeviceId = merged.originDeviceId,
                         localVersion = (local?.localVersion ?: 0) + 1,
                         syncedVersion = local?.syncedVersion ?: 0,
+                        title = merged.title,
+                        latitude = merged.latitude,
+                        longitude = merged.longitude,
                     ),
                 )
                 dao.upsertDeviceCounts(merged.deviceCounts.map { (device, count) -> DeviceCountEntity(merged.sessionId, device, count) })
@@ -303,6 +317,9 @@ internal fun SessionEntity.toSession() = PradarshanaSession(
     endTime = endTime,
     status = status,
     lastUpdatedTime = lastUpdatedTime,
+    title = title,
+    latitude = latitude,
+    longitude = longitude,
 )
 
 internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = SessionSnapshot(
@@ -316,4 +333,7 @@ internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = Session
     lastUpdatedTime = lastUpdatedTime,
     originDeviceId = originDeviceId,
     deviceCounts = counts.associate { it.deviceId to it.count }.toSortedMap(),
+    title = title,
+    latitude = latitude,
+    longitude = longitude,
 )

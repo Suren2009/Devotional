@@ -26,6 +26,10 @@ data class SessionEntity(
     /** Incremented on every local state change; compared to [syncedVersion] to find unsent changes. */
     @ColumnInfo(name = "local_version") val localVersion: Long,
     @ColumnInfo(name = "synced_version") val syncedVersion: Long,
+    /** Empty string when the session was not named. */
+    @ColumnInfo(name = "title", defaultValue = "''") val title: String,
+    val latitude: Double?,
+    val longitude: Double?,
 )
 
 /** One G-Counter entry: the number of rounds counted on [deviceId] for a session. */

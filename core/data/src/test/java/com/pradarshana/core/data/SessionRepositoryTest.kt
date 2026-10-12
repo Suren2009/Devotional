@@ -41,8 +41,28 @@ class SessionRepositoryTest {
         db.close()
     }
 
-    private suspend fun start(target: Int): String =
-        (repo.startSession(target) as StartResult.Started).sessionId
+    private suspend fun start(
+        target: Int,
+        title: String = "",
+        latitude: Double? = null,
+        longitude: Double? = null,
+    ): String = (repo.startSession(target, title, latitude, longitude) as StartResult.Started).sessionId
+
+    @Test
+    fun titleAndLocationAreStoredAndABlankTitleStaysBlank() = runTest {
+        val named = start(21, title = "  Kapaleeshwarar  ", latitude = 13.033, longitude = 80.270)
+        val session = repo.getSession(named)!!
+        assertEquals("Kapaleeshwarar", session.title)
+        assertEquals("Kapaleeshwarar", session.displayTitle)
+        assertEquals(13.033, session.latitude!!, 0.0)
+        assertEquals(80.270, session.longitude!!, 0.0)
+
+        val plain = start(3, latitude = 95.0, longitude = 0.0)
+        val untitled = repo.getSession(plain)!!
+        assertEquals("", untitled.title)
+        assertEquals("Untitled", untitled.displayTitle)
+        assertEquals(false, untitled.hasLocation)
+    }
 
     @Test
     fun startingWithValidTargetInitialisesSession() = runTest {

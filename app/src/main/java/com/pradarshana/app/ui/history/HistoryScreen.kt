@@ -72,9 +72,16 @@ class HistoryViewModel(repository: SessionRepository, private val syncManager: S
 
 @Composable
 fun HistoryRoute(onBack: () -> Unit, onOpen: (String) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val vm = appViewModel { HistoryViewModel(it.repository, it.syncManager) }
     val history by vm.history.collectAsStateWithLifecycle()
-    HistoryScreen(history = history, onBack = onBack, onOpen = onOpen, onClear = vm::clearHistory)
+    HistoryScreen(
+        history = history,
+        onBack = onBack,
+        onOpen = onOpen,
+        onClear = vm::clearHistory,
+        onShowMap = { openSessionInMaps(context, it) },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +91,7 @@ fun HistoryScreen(
     onBack: () -> Unit,
     onOpen: (String) -> Unit,
     onClear: () -> Unit,
+    onShowMap: (PradarshanaSession) -> Unit = {},
 ) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
 
@@ -117,7 +125,7 @@ fun HistoryScreen(
                 modifier = Modifier.testTag("history_list"),
             ) {
                 items(history, key = { it.id }) { session ->
-                    HistoryItem(session, onClick = { onOpen(session.id) })
+                    HistoryItem(session, onClick = { onOpen(session.id) }, onShowMap = { onShowMap(session) })
                 }
             }
         }
@@ -161,7 +169,7 @@ private fun EmptyHistory(modifier: Modifier) {
 }
 
 @Composable
-private fun HistoryItem(session: PradarshanaSession, onClick: () -> Unit) {
+private fun HistoryItem(session: PradarshanaSession, onClick: () -> Unit, onShowMap: () -> Unit) {
     val duration = DurationFormat.format(session.durationMillis())
     val statusLabel = statusLabel(session.status)
     Card(
@@ -170,15 +178,18 @@ private fun HistoryItem(session: PradarshanaSession, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(role = Role.Button, onClickLabel = "Open details", onClick = onClick)
             .semantics(mergeDescendants = true) {
-                contentDescription = "${Formatting.dateTime(session.startTime)}, " +
+                contentDescription = "${session.displayTitle}, ${Formatting.dateTime(session.startTime)}, " +
                     "${session.completedCount} of ${session.targetCount} rounds, $duration, $statusLabel"
             },
     ) {
         Column(Modifier.padding(16.dp)) {
+            Text(session.displayTitle, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     Formatting.dateTime(session.startTime),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 StatusChip(session.status)
@@ -196,6 +207,11 @@ private fun HistoryItem(session: PradarshanaSession, onClick: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(progress = { session.progressFraction }, modifier = Modifier.fillMaxWidth())
+            if (session.hasLocation) {
+                TextButton(onClick = onShowMap, modifier = Modifier.testTag("show_on_map_${session.id}")) {
+                    Text("Show on map")
+                }
+            }
         }
     }
 }

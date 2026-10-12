@@ -77,6 +77,16 @@ class PhoneWatchSyncTest {
     private suspend fun pump() = layer.pump(phone.sync, watch.sync)
 
     @Test
+    fun titleAndLocationStartedOnThePhoneArriveOnTheWatch() = runTest {
+        val id = (phone.repo.startSession(11, "Kapaleeshwarar", 13.033, 80.270) as StartResult.Started).sessionId
+        pump()
+        val onWatch = watch.session(id)
+        assertEquals("Kapaleeshwarar", onWatch.title)
+        assertEquals(13.033, onWatch.latitude!!, 0.0)
+        assertEquals(80.270, onWatch.longitude!!, 0.0)
+    }
+
+    @Test
     fun phoneIncrementsAppearOnWatch() = runTest {
         val id = phone.start(108)
         phone.tap(id, 27)

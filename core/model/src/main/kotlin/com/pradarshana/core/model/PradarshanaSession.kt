@@ -12,6 +12,10 @@ data class PradarshanaSession(
     val endTime: Long?,
     val status: SessionStatus,
     val lastUpdatedTime: Long,
+    /** Empty when the devotee did not name the session. Display [displayTitle] instead. */
+    val title: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
@@ -19,7 +23,14 @@ data class PradarshanaSession(
         require(status != SessionStatus.COMPLETED || completedCount == targetCount) {
             "A completed session must have completedCount == targetCount"
         }
+        require(title == SessionDetails.normalizeTitle(title)) { "title must be normalized" }
+        val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
+        require(lat == latitude && lng == longitude) { "location must be a valid pair or absent" }
     }
+
+    val displayTitle: String get() = SessionDetails.displayTitle(title)
+
+    val hasLocation: Boolean get() = latitude != null && longitude != null
 
     val remainingCount: Int get() = CounterRules.remaining(targetCount, completedCount)
 

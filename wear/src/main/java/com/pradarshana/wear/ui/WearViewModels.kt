@@ -11,6 +11,7 @@ import com.pradarshana.core.data.PradarshanaContainer
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.StartResult
+import com.pradarshana.core.data.location.LocationCapture
 import com.pradarshana.core.model.PradarshanaSession
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +27,10 @@ inline fun <reified VM : ViewModel> wearViewModel(crossinline create: (Pradarsha
     return viewModel(factory = viewModelFactory { initializer { create(container) } })
 }
 
-class WearHomeViewModel(private val repository: SessionRepository) : ViewModel() {
+class WearHomeViewModel(
+    private val repository: SessionRepository,
+    private val locationCapture: LocationCapture = LocationCapture { null },
+) : ViewModel() {
     val ongoing: StateFlow<PradarshanaSession?> = repository.observeOngoingSession()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -34,11 +38,13 @@ class WearHomeViewModel(private val repository: SessionRepository) : ViewModel()
     val started: Flow<String> = _started.receiveAsFlow()
     private var starting = false
 
-    fun start(target: Int) {
+    fun start(target: Int, captureLocation: Boolean = false) {
         if (starting) return
         starting = true
         viewModelScope.launch {
-            (repository.startSession(target) as? StartResult.Started)?.let { _started.send(it.sessionId) }
+            val fix = if (captureLocation) runCatching { locationCapture.capture() }.getOrNull() else null
+            val result = repository.startSession(target, latitude = fix?.latitude, longitude = fix?.longitude)
+            (result as? StartResult.Started)?.let { _started.send(it.sessionId) }
             starting = false
         }
     }

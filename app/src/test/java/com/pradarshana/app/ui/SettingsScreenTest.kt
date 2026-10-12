@@ -81,4 +81,32 @@ class SettingsScreenTest {
         prefs.setVibrateOnCount(false)
         assertFalse(CountFeedbackPreferences(context).vibrateOnCount.value)
     }
+
+    @Test
+    fun darkenAfterTwoCountsIsOnUntilTurnedOff() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE)
+            .edit()
+            .remove(CountFeedbackPreferences.KEY_BLACKOUT_AFTER_TWO_TAPS)
+            .commit()
+        val prefs = CountFeedbackPreferences(context)
+        assertTrue(prefs.blackoutAfterTwoTaps.value)
+        var enabled = true
+        compose.setContent {
+            PradarshanaTheme {
+                SettingsScreen(
+                    mode = ThemeMode.SYSTEM,
+                    onMode = {},
+                    onBack = {},
+                    blackoutAfterTwoTaps = enabled,
+                    onBlackoutAfterTwoTaps = { enabled = it },
+                )
+            }
+        }
+        compose.onNodeWithText("Darken after two counts").assertExists()
+        compose.onNodeWithTag("blackout_after_two_taps").performClick()
+        assertFalse(enabled)
+        prefs.setBlackoutAfterTwoTaps(false)
+        assertFalse(CountFeedbackPreferences(context).blackoutAfterTwoTaps.value)
+    }
 }

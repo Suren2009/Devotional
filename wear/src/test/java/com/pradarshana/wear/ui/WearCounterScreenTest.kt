@@ -143,6 +143,44 @@ class WearCounterScreenTest {
     }
 
     @Test
+    fun homeBatterySaverChipStartsOnAndToggles() {
+        var enabled = true
+        compose.setContent {
+            WearTheme {
+                WearHomeScreen(
+                    ongoing = null,
+                    onResume = {},
+                    onStart = {},
+                    blackoutAfterTwoTaps = enabled,
+                    onToggleBlackout = { enabled = !enabled },
+                )
+            }
+        }
+        compose.onNodeWithTag("wear_battery_saver").performClick()
+        assertEquals(false, enabled)
+    }
+
+    @Test
+    fun blackoutStaysOffWhenTheSettingIsDisabled() {
+        val session = PradarshanaSession("s", 108, 0, 0, null, SessionStatus.ACTIVE, 0)
+        compose.setContent {
+            WearTheme {
+                WearCounterScreen(
+                    session = session,
+                    onIncrement = {},
+                    onTogglePause = {},
+                    onEnd = {},
+                    batterySaverEnabled = false,
+                )
+            }
+        }
+        compose.onNodeWithTag("wear_increment").performClick()
+        compose.onNodeWithTag("wear_increment").performClick()
+        compose.onNodeWithTag("battery_saver").assertDoesNotExist()
+        compose.onNodeWithTag("wear_count", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
     fun completionScreenShowsSummary() {
         val session = PradarshanaSession("w2", 108, 108, 0, 1_930_000, SessionStatus.COMPLETED, 1_930_000)
         var done = false

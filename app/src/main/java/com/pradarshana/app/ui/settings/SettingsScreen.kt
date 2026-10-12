@@ -43,11 +43,14 @@ fun SettingsRoute(onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as PradarshanaApp
     val mode by app.themeStore.mode.collectAsStateWithLifecycle()
     val vibrateOnCount by app.container.countFeedback.vibrateOnCount.collectAsStateWithLifecycle()
+    val blackoutAfterTwoTaps by app.container.countFeedback.blackoutAfterTwoTaps.collectAsStateWithLifecycle()
     SettingsScreen(
         mode = mode,
         onMode = app.themeStore::set,
         vibrateOnCount = vibrateOnCount,
         onVibrateOnCount = app.container.countFeedback::setVibrateOnCount,
+        blackoutAfterTwoTaps = blackoutAfterTwoTaps,
+        onBlackoutAfterTwoTaps = app.container.countFeedback::setBlackoutAfterTwoTaps,
         onBack = onBack,
     )
 }
@@ -60,6 +63,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     vibrateOnCount: Boolean = true,
     onVibrateOnCount: (Boolean) -> Unit = {},
+    blackoutAfterTwoTaps: Boolean = true,
+    onBlackoutAfterTwoTaps: (Boolean) -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -148,6 +153,26 @@ fun SettingsScreen(
                     )
                 }
                 Switch(checked = vibrateOnCount, onCheckedChange = onVibrateOnCount)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .clickable(role = Role.Switch) { onBlackoutAfterTwoTaps(!blackoutAfterTwoTaps) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("blackout_after_two_taps"),
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Darken after two counts", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Turns the screen black except the plus button. Double-tap elsewhere to bring the count back.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = blackoutAfterTwoTaps, onCheckedChange = onBlackoutAfterTwoTaps)
             }
         }
     }

@@ -107,12 +107,19 @@ fun CounterRoute(
         CounterUiState.Missing -> LaunchedEffect(Unit) { onEnded() }
         is CounterUiState.Ready -> {
             KeepScreenOn(s.session.status == SessionStatus.ACTIVE)
+            val batterySaverEnabled = if (feedback == null) {
+                true
+            } else {
+                val enabled by feedback.blackoutAfterTwoTaps.collectAsStateWithLifecycle()
+                enabled
+            }
             CounterScreen(
                 session = s.session,
                 onIncrement = viewModel::increment,
                 onTogglePause = viewModel::togglePause,
                 onEndSession = viewModel::endSession,
                 onBack = onBack,
+                batterySaverEnabled = batterySaverEnabled,
             )
         }
     }
@@ -126,6 +133,7 @@ fun CounterScreen(
     onTogglePause: () -> Unit,
     onEndSession: () -> Unit,
     onBack: () -> Unit,
+    batterySaverEnabled: Boolean = true,
 ) {
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
     var blackout by rememberSaveable { mutableStateOf(false) }
@@ -137,6 +145,10 @@ fun CounterScreen(
         plusClicks = 0
     }
 
+    LaunchedEffect(batterySaverEnabled) {
+        if (!batterySaverEnabled) wake()
+    }
+
     fun onPlus() {
         if (!session.canIncrement) return
         val completesNow = session.completedCount + 1 >= session.targetCount
@@ -145,7 +157,7 @@ fun CounterScreen(
             wake()
             return
         }
-        if (!blackout) {
+        if (!blackout && batterySaverEnabled) {
             plusClicks += 1
             if (plusClicks >= 2) blackout = true
         }

@@ -37,6 +37,8 @@ fun WearHomeScreen(
     onStart: () -> Unit,
     vibrateOnCount: Boolean = true,
     onToggleVibration: () -> Unit = {},
+    blackoutAfterTwoTaps: Boolean = true,
+    onToggleBlackout: () -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     Scaffold(
@@ -86,6 +88,14 @@ fun WearHomeScreen(
                     label = { Text(if (vibrateOnCount) "Tap vibration on" else "Tap vibration off") },
                     colors = ChipDefaults.secondaryChipColors(),
                     modifier = Modifier.fillMaxWidth().testTag("wear_vibration"),
+                )
+            }
+            item {
+                Chip(
+                    onClick = onToggleBlackout,
+                    label = { Text(if (blackoutAfterTwoTaps) "Dark after two taps" else "Stay lit while counting") },
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth().testTag("wear_battery_saver"),
                 )
             }
         }

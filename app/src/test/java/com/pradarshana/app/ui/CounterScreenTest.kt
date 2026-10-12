@@ -16,6 +16,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.counter.CounterRoute
+import com.pradarshana.app.ui.counter.CounterScreen
+import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.core.data.SessionRepository
@@ -122,6 +124,27 @@ class CounterScreenTest {
         }
         compose.onNodeWithTag("pause_button").assertExists()
         compose.onNodeWithTag("battery_saver").assertDoesNotExist()
+    }
+
+    @Test
+    fun blackoutStaysOffWhenTheSettingIsDisabled() {
+        val session = PradarshanaSession("s", 108, 0, 0, null, SessionStatus.ACTIVE, 0)
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = session,
+                    onIncrement = {},
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    batterySaverEnabled = false,
+                )
+            }
+        }
+        compose.onNodeWithTag("increment_button").performClick()
+        compose.onNodeWithTag("increment_button").performClick()
+        compose.onNodeWithTag("battery_saver").assertDoesNotExist()
+        compose.onNodeWithTag("pause_button").assertExists()
     }
 
     @Test

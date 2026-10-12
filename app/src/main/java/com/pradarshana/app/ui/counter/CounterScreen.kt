@@ -58,6 +58,7 @@ import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.CompletionVibration
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.app.ui.components.PauseIcon
+import com.pradarshana.app.ui.components.SessionMark
 import com.pradarshana.core.data.presentation.CounterEvent
 import com.pradarshana.core.data.presentation.CounterUiState
 import com.pradarshana.core.data.presentation.CounterViewModel
@@ -125,7 +126,7 @@ fun CounterScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Pradarshana") },
+                title = { Text(session.kind.label) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to home")
@@ -142,6 +143,8 @@ fun CounterScreen(
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            SessionMark(session.kind, size = 72.dp)
+            Spacer(Modifier.height(4.dp))
             Box(
                 Modifier
                     .weight(1f)

@@ -16,11 +16,15 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pradarshana.app.ui.theme.LocalTempleColors
+import com.pradarshana.core.model.SessionKind
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** Decorative lotus mandala with an Om at its centre. Purely ornamental, hidden from accessibility. */
 @Composable
@@ -57,6 +61,81 @@ fun Mandala(modifier: Modifier = Modifier, size: Dp = 168.dp, showOm: Boolean = 
         if (showOm) {
             Text("ॐ", color = MaterialTheme.colorScheme.primary, fontSize = (size.value * 0.22f).sp)
         }
+    }
+}
+
+/** A loop of prayer beads with a larger guru bead and tassel. Hidden from accessibility. */
+@Composable
+fun JapaMala(modifier: Modifier = Modifier, size: Dp = 168.dp) {
+    val gold = LocalTempleColors.current.gold
+    val saffron = LocalTempleColors.current.saffron
+    Box(modifier.size(size).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(size)) {
+            val radius = this.size.minDimension / 2f
+            val centerX = center.x
+            val centerY = center.y - radius * 0.04f
+            val orbit = radius * 0.62f
+            val beadRadius = radius * 0.075f
+            drawCircle(
+                color = gold.copy(alpha = 0.4f),
+                radius = orbit,
+                center = Offset(centerX, centerY),
+                style = Stroke(width = 1.25.dp.toPx()),
+            )
+            val beadCount = 20
+            val gapDegrees = 28.0
+            val sweep = 360.0 - gapDegrees
+            val start = 90.0 + gapDegrees / 2.0
+            repeat(beadCount) { index ->
+                val degrees = start + sweep * index / (beadCount - 1)
+                val angle = Math.toRadians(degrees)
+                val bead = Offset(
+                    centerX + cos(angle).toFloat() * orbit,
+                    centerY + sin(angle).toFloat() * orbit,
+                )
+                drawCircle(gold.copy(alpha = 0.92f), beadRadius, bead)
+                drawCircle(saffron.copy(alpha = 0.45f), beadRadius * 0.42f, bead)
+            }
+            val guruAngle = Math.toRadians(90.0)
+            val guru = Offset(
+                centerX + cos(guruAngle).toFloat() * orbit,
+                centerY + sin(guruAngle).toFloat() * orbit,
+            )
+            drawCircle(saffron, beadRadius * 1.85f, guru)
+            drawCircle(gold, beadRadius * 0.65f, guru)
+            val tasselTop = guru.y + beadRadius * 1.85f
+            val tasselLength = radius * 0.2f
+            drawLine(
+                saffron,
+                Offset(guru.x, tasselTop),
+                Offset(guru.x, tasselTop + tasselLength),
+                strokeWidth = 1.6.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                gold,
+                Offset(guru.x, tasselTop),
+                Offset(guru.x - radius * 0.08f, tasselTop + tasselLength * 0.82f),
+                strokeWidth = 1.3.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                gold,
+                Offset(guru.x, tasselTop),
+                Offset(guru.x + radius * 0.08f, tasselTop + tasselLength * 0.82f),
+                strokeWidth = 1.3.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
+/** Japa mala while chanting; the temple mandala for a Pradarshana. */
+@Composable
+fun SessionMark(kind: SessionKind, modifier: Modifier = Modifier, size: Dp = 48.dp) {
+    val chanting = kind == SessionKind.CHANTING
+    Box(modifier.testTag(if (chanting) "japa_mala" else "mandala")) {
+        if (chanting) JapaMala(size = size) else Mandala(size = size)
     }
 }
 

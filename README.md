@@ -12,12 +12,12 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
 - An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
-- Counting screen: large completed count, target, remaining, percentage and progress ring, a large **+** button,
+- Counting screen: the temple mandala for a Pradarshana, or a japa mala while chanting, with a large completed count, target, remaining, percentage and progress ring, a large **+** button,
   Pause/Resume, and End Session with a confirmation dialog. Each + can give a short 70 ms vibration
   (on by default, and switched off in Settings), and reaching the target vibrates for half a second.
   The screen stays on while a session is active.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, duration and a gentle radiance animation.
-- History, newest first, with the session type, date/time, target, completed count, duration and status (Completed / Incomplete),
+- History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, duration and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
   History is never deleted automatically.
 - Settings for a light theme, a dark theme, or the phone’s system theme, in a saffron, cream and muted gold palette.

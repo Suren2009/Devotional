@@ -50,6 +50,7 @@ import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.ui.Formatting
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.Mandala
+import com.pradarshana.app.ui.components.SessionMark
 import com.pradarshana.app.ui.theme.LocalTempleColors
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.sync.SyncManager
@@ -221,13 +222,18 @@ private fun HistoryItem(
             },
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(session.displayTitle, style = MaterialTheme.typography.titleMedium)
-            Text(
-                session.kind.label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.testTag("session_kind_${session.id}"),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SessionMark(session.kind, Modifier.padding(end = 12.dp), size = 48.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(session.displayTitle, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        session.kind.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.testTag("session_kind_${session.id}"),
+                    )
+                }
+            }
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(

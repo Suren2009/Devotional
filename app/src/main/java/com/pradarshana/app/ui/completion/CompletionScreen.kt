@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.ui.Formatting
 import com.pradarshana.app.ui.appViewModel
-import com.pradarshana.app.ui.components.Mandala
+import com.pradarshana.app.ui.components.SessionMark
 import com.pradarshana.app.ui.session.SessionViewModel
 import com.pradarshana.app.ui.theme.LocalTempleColors
 import com.pradarshana.core.model.DurationFormat
@@ -79,11 +79,11 @@ fun CompletionScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Radiance(Modifier.size(240.dp))
-                    Mandala(size = 150.dp)
+                    SessionMark(session.kind, size = 150.dp)
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Pradarshana Completed!",
+                    "${session.kind.label} Completed!",
                     style = MaterialTheme.typography.headlineMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier

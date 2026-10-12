@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.ui.Formatting
+import com.pradarshana.app.ui.components.SessionMark
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.ProgressRing
 import com.pradarshana.app.ui.session.SessionViewModel
@@ -95,6 +96,8 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(12.dp))
+            SessionMark(session.kind, size = 72.dp)
+            Spacer(Modifier.height(8.dp))
             Text(
                 session.displayTitle,
                 style = MaterialTheme.typography.headlineSmall,

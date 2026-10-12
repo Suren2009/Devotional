@@ -112,8 +112,10 @@ fun WearCounterScreen(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(top = 18.dp),
+                modifier = Modifier.padding(top = 16.dp),
             ) {
+                WearSessionMark(session.kind, size = 26.dp)
+                Spacer(Modifier.height(2.dp))
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.semantics(mergeDescendants = true) {

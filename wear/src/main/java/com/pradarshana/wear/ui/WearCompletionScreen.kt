@@ -14,9 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,7 +25,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material.CompactChip
-import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.pradarshana.core.model.DurationFormat
@@ -65,9 +61,9 @@ fun WearCompletionScreen(session: PradarshanaSession, onDone: () -> Unit) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(horizontal = 20.dp),
         ) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = Gold, modifier = Modifier.size(28.dp))
+            WearSessionMark(session.kind, size = 32.dp)
             Text(
-                "Pradarshana Completed!",
+                "${session.kind.label} Completed!",
                 style = MaterialTheme.typography.title3,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.testTag("wear_completed_title"),

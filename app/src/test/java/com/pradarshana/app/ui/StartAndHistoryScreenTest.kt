@@ -211,6 +211,8 @@ class StartAndHistoryScreenTest {
         compose.onNodeWithText("Kapaleeshwarar").assertExists()
         compose.onNodeWithText("Untitled").assertExists()
         compose.onNodeWithTag("session_kind_new", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("mandala", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("japa_mala", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Chanting", useUnmergedTree = true).assertExists()
         compose.onNodeWithText(" / 21 names", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Completed").assertExists()

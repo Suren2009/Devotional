@@ -1,6 +1,5 @@
 package com.pradarshana.app.ui.counter
 
-import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.ui.appViewModel
+import com.pradarshana.core.data.CompletionVibration
 import com.pradarshana.app.ui.components.PauseIcon
 import com.pradarshana.core.data.presentation.CounterEvent
 import com.pradarshana.core.data.presentation.CounterUiState
@@ -82,7 +82,7 @@ fun CounterRoute(
             when (event) {
                 CounterEvent.RoundCounted -> view.tick()
                 CounterEvent.Completed -> {
-                    view.confirm()
+                    CompletionVibration.start(view.context)
                     onCompleted(sessionId)
                 }
                 CounterEvent.Ended -> onEnded()
@@ -282,10 +282,4 @@ private fun KeepScreenOn(enabled: Boolean) {
 
 private fun View.tick() {
     performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-}
-
-private fun View.confirm() {
-    performHapticFeedback(
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS,
-    )
 }

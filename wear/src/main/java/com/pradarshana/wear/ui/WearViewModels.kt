@@ -1,6 +1,9 @@
 package com.pradarshana.wear.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +15,7 @@ import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.StartResult
 import com.pradarshana.core.data.location.LocationCapture
+import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.PradarshanaSession
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +37,13 @@ class WearHomeViewModel(
 ) : ViewModel() {
     val ongoing: StateFlow<PradarshanaSession?> = repository.observeOngoingSession()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    var counts by mutableStateOf(CommonCounts.defaults)
+        private set
+
+    init {
+        viewModelScope.launch { counts = repository.suggestedCounts() }
+    }
 
     private val _started = Channel<String>(Channel.BUFFERED)
     val started: Flow<String> = _started.receiveAsFlow()

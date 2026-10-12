@@ -19,6 +19,12 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE status IN ('COMPLETED', 'CANCELLED') ORDER BY start_time DESC, id DESC")
     fun observeHistory(): Flow<List<SessionEntity>>
 
+    @Query("SELECT target_count FROM sessions ORDER BY start_time DESC, id DESC")
+    suspend fun targetCountsNewestFirst(): List<Int>
+
+    @Query("SELECT title FROM sessions ORDER BY start_time DESC, id DESC LIMIT 1")
+    suspend fun latestTitle(): String?
+
     @Query("SELECT * FROM sessions WHERE id = :id")
     suspend fun getSession(id: String): SessionEntity?
 

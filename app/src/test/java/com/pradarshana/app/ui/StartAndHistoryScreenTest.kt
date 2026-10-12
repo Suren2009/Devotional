@@ -120,16 +120,61 @@ class StartAndHistoryScreenTest {
     }
 
     @Test
+    fun latestTitleIsPrefilledAndLatestCountIsTheFirstChip() {
+        runBlocking { repo.startSession(54, "Meenakshi") }
+        val vm = StartViewModel(repo)
+        compose.setContent {
+            PradarshanaTheme {
+                StartScreen(
+                    input = vm.input,
+                    error = vm.error,
+                    ongoing = null,
+                    onInputChange = vm::onInputChange,
+                    onStart = {},
+                    onBack = {},
+                    title = vm.title,
+                    onTitleChange = vm::onTitleChange,
+                    counts = vm.counts,
+                )
+            }
+        }
+        compose.waitUntilReal { vm.title == "Meenakshi" && vm.counts.first() == 54 }
+        assertEquals(listOf(54, 3, 9, 18, 108), vm.counts)
+        compose.onNodeWithText("Meenakshi").assertExists()
+        compose.onNodeWithTag("count_54").assertExists()
+    }
+
+    @Test
+    fun editingTheTitleIsNotOverwrittenByTheLatestSession() {
+        runBlocking { repo.startSession(9, "Old temple") }
+        val vm = StartViewModel(repo)
+        vm.onTitleChange("New temple")
+        compose.waitUntilReal { vm.counts.first() == 9 }
+        assertEquals("New temple", vm.title)
+    }
+
+    @Test
     fun homeShowsResumeCardForOngoingSession() {
         var resumed: String? = null
+        var openedSettings = false
         val ongoing = PradarshanaSession("s1", 108, 27, 0, null, SessionStatus.ACTIVE, 0)
         compose.setContent {
-            PradarshanaTheme { HomeScreen(ongoing, onStart = {}, onResume = { resumed = it }, onHistory = {}) }
+            PradarshanaTheme {
+                HomeScreen(
+                    ongoing,
+                    onStart = {},
+                    onResume = { resumed = it },
+                    onHistory = {},
+                    onSettings = { openedSettings = true },
+                )
+            }
         }
         compose.onNodeWithText("Pradarshana").assertIsDisplayed()
         compose.onNodeWithText("27 of 108 rounds · 81 remaining").assertExists()
         compose.onNodeWithTag("resume_button").performClick()
         assertEquals("s1", resumed)
+        compose.onNodeWithTag("settings_button").performClick()
+        assertTrue(openedSettings)
     }
 
     @Test

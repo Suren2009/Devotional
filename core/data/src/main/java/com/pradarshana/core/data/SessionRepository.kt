@@ -7,6 +7,7 @@ import com.pradarshana.core.data.db.DeviceCountEntity
 import com.pradarshana.core.data.db.MetadataEntity
 import com.pradarshana.core.data.db.PradarshanaDatabase
 import com.pradarshana.core.data.db.SessionEntity
+import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionDetails
@@ -86,6 +87,11 @@ class SessionRepository(
     suspend fun getSession(id: String): PradarshanaSession? = dao.getSession(id)?.toSession()
 
     suspend fun getOngoingSession(): PradarshanaSession? = dao.getOngoingSessions().firstOrNull()?.toSession()
+
+    /** Most recent session title, or blank when there is no history or it was left unnamed. */
+    suspend fun latestSessionTitle(): String = SessionDetails.normalizeTitle(dao.latestTitle().orEmpty())
+
+    suspend fun suggestedCounts(): List<Int> = CommonCounts.suggest(dao.targetCountsNewestFirst())
 
     suspend fun startSession(
         targetCount: Int,

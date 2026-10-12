@@ -239,4 +239,15 @@ class SessionRepositoryTest {
         secondDb.close()
         context.deleteDatabase(name)
     }
+
+    @Test
+    fun suggestionsUseTheLatestTitleThenFrequentCounts() = runTest {
+        start(108, title = "First")
+        clock.advance(1_000)
+        start(108, title = "  ")
+        clock.advance(1_000)
+        start(21, title = "Meenakshi")
+        assertEquals("Meenakshi", repo.latestSessionTitle())
+        assertEquals(listOf(21, 108, 3, 9, 18, 54), repo.suggestedCounts())
+    }
 }

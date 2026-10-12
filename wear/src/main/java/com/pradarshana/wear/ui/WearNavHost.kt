@@ -79,7 +79,11 @@ fun WearNavHost(
                     navController.navigate(WearRoutes.counter(id)) { popUpTo(WearRoutes.HOME) }
                 }
             }
-            WearTargetScreen(onSelect = start, onCustom = { navController.navigate(WearRoutes.CUSTOM) })
+            WearTargetScreen(
+                counts = vm.counts,
+                onSelect = start,
+                onCustom = { navController.navigate(WearRoutes.CUSTOM) },
+            )
         }
         composable(WearRoutes.CUSTOM) {
             val context = LocalContext.current

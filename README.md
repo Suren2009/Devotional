@@ -8,25 +8,25 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 
 **Phone**
 - Home screen with *Start Pradarshana*, *Pradarshana History*, and a *Resume* card while a session is in progress.
-- Target entry with validation (must be a whole number from 1 to 100,000) and quick picks (3, 7, 11, 21, 51, 108).
-- An optional title. A session with no title is shown as **Untitled**.
+- Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
+- An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
 - Counting screen: large completed count, target, remaining, percentage and progress ring, a large **+** button,
-  Pause/Resume, and End Session with a confirmation dialog. Subtle haptic tick on every round; the screen stays on
-  while a session is active.
+  Pause/Resume, and End Session with a confirmation dialog. Subtle haptic tick on every round, and a gentle
+  three-second vibration when the target is reached. The screen stays on while a session is active.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, duration and a gentle radiance animation.
 - History, newest first, with date/time, target, completed rounds, duration and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
   History is never deleted automatically.
-- Light and dark themes in a saffron, cream and muted gold palette.
+- Settings for a light theme, a dark theme, or the phone’s system theme, in a saffron, cream and muted gold palette.
 
 **Wear OS watch**
 - Home: app name, *Start Pradarshana*, and *Resume* when a session exists.
-- Target picker with presets and a custom value (on-screen stepper or rotating crown).
+- Target picker with the same common counts as the phone, plus a custom value (on-screen stepper or rotating crown).
 - Counting screen for round displays: large count, target and remaining, progress arc, a large **+** button and
   Pause/Resume. *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk
   cannot end the session.
-- Completion screen with haptic confirmation.
+- Completion screen with a gentle three-second vibration.
 - Works stand-alone; it synchronises with the phone whenever they are connected.
 
 Every count is saved immediately, so an active session survives the app being closed or the process being killed

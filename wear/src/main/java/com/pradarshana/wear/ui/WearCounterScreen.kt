@@ -45,6 +45,7 @@ import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.dialog.Alert
 import androidx.wear.compose.material.dialog.Dialog
+import com.pradarshana.core.data.CompletionVibration
 import com.pradarshana.core.data.presentation.CounterEvent
 import com.pradarshana.core.data.presentation.CounterUiState
 import com.pradarshana.core.data.presentation.CounterViewModel
@@ -65,7 +66,7 @@ fun WearCounterRoute(
             when (event) {
                 CounterEvent.RoundCounted -> view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 CounterEvent.Completed -> {
-                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    CompletionVibration.start(view.context)
                     onCompleted(sessionId)
                 }
                 CounterEvent.Ended -> onEnded()

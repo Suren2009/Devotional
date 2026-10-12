@@ -57,6 +57,7 @@ import com.pradarshana.core.data.StartResult
 import com.pradarshana.core.data.location.FusedLocationCapture
 import com.pradarshana.core.data.location.LocationCapture
 import com.pradarshana.core.data.location.hasLocationPermission
+import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.CounterRules.TargetValidation
@@ -79,7 +80,18 @@ class StartViewModel(
         private set
     var error by mutableStateOf<String?>(null)
         private set
+    var counts by mutableStateOf(CommonCounts.defaults)
+        private set
+    private var titleEdited = false
     private var starting = false
+
+    init {
+        viewModelScope.launch {
+            val latest = repository.latestSessionTitle()
+            if (!titleEdited && title.isEmpty() && latest.isNotBlank()) title = latest
+            counts = repository.suggestedCounts()
+        }
+    }
 
     val ongoing: StateFlow<PradarshanaSession?> = repository.observeOngoingSession()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -88,6 +100,7 @@ class StartViewModel(
     val started: Flow<String> = _started.receiveAsFlow()
 
     fun onTitleChange(value: String) {
+        titleEdited = true
         title = value.take(SessionDetails.MAX_TITLE_LENGTH)
     }
 
@@ -125,8 +138,6 @@ class StartViewModel(
     }
 }
 
-val PresetTargets = listOf(3, 7, 11, 21, 51, 108)
-
 @Composable
 fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
     val context = LocalContext.current
@@ -141,6 +152,7 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
         input = vm.input,
         error = vm.error,
         ongoing = ongoing,
+        counts = vm.counts,
         onTitleChange = vm::onTitleChange,
         onInputChange = vm::onInputChange,
         onStart = {
@@ -162,6 +174,7 @@ fun StartScreen(
     onBack: () -> Unit,
     title: String = "",
     onTitleChange: (String) -> Unit = {},
+    counts: List<Int> = CommonCounts.defaults,
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -222,11 +235,13 @@ fun StartScreen(
             Spacer(Modifier.height(8.dp))
             Text("Common counts", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PresetTargets.forEach { preset ->
+                counts.forEach { preset ->
                     SuggestionChip(
                         onClick = { onInputChange(preset.toString()) },
                         label = { Text(preset.toString()) },
-                        modifier = Modifier.semantics { contentDescription = "$preset rounds" },
+                        modifier = Modifier
+                            .semantics { contentDescription = "$preset rounds" }
+                            .testTag("count_$preset"),
                     )
                 }
             }

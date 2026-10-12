@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -55,10 +57,21 @@ class HomeViewModel(repository: SessionRepository) : ViewModel() {
 }
 
 @Composable
-fun HomeRoute(onStart: () -> Unit, onResume: (String) -> Unit, onHistory: () -> Unit) {
+fun HomeRoute(
+    onStart: () -> Unit,
+    onResume: (String) -> Unit,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+) {
     val vm = appViewModel { HomeViewModel(it.repository) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
-    HomeScreen(ongoing = ongoing, onStart = onStart, onResume = onResume, onHistory = onHistory)
+    HomeScreen(
+        ongoing = ongoing,
+        onStart = onStart,
+        onResume = onResume,
+        onHistory = onHistory,
+        onSettings = onSettings,
+    )
 }
 
 @Composable
@@ -67,6 +80,7 @@ fun HomeScreen(
     onStart: () -> Unit,
     onResume: (String) -> Unit,
     onHistory: () -> Unit,
+    onSettings: () -> Unit = {},
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -122,7 +136,16 @@ fun HomeScreen(
                 Spacer(Modifier.size(8.dp))
                 Text("Pradarshana History", style = MaterialTheme.typography.labelLarge)
             }
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = onSettings,
+                modifier = Modifier.testTag("settings_button"),
+            ) {
+                Icon(Icons.Filled.Settings, contentDescription = null)
+                Spacer(Modifier.size(8.dp))
+                Text("Settings")
+            }
+            Spacer(Modifier.height(24.dp))
         }
         }
     }

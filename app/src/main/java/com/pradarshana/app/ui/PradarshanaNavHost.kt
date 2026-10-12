@@ -17,6 +17,7 @@ import com.pradarshana.app.ui.counter.CounterRoute
 import com.pradarshana.app.ui.history.HistoryRoute
 import com.pradarshana.app.ui.history.SessionDetailRoute
 import com.pradarshana.app.ui.home.HomeRoute
+import com.pradarshana.app.ui.settings.SettingsRoute
 import com.pradarshana.app.ui.start.StartRoute
 import com.pradarshana.core.data.SessionRepository
 
@@ -27,6 +28,7 @@ object Routes {
     const val COMPLETION = "completion/{id}"
     const val HISTORY = "history"
     const val DETAIL = "history/{id}"
+    const val SETTINGS = "settings"
 
     fun counter(id: String) = "counter/$id"
     fun completion(id: String) = "completion/$id"
@@ -55,6 +57,7 @@ fun PradarshanaNavHost(
                 onStart = { navController.navigate(Routes.START) },
                 onResume = { navController.navigate(Routes.counter(it)) },
                 onHistory = { navController.navigate(Routes.HISTORY) },
+                onSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
         composable(Routes.START) {
@@ -93,6 +96,9 @@ fun PradarshanaNavHost(
                 },
                 onHome = { navController.popBackStack(Routes.HOME, inclusive = false) },
             )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsRoute(onBack = { navController.popBackStack() })
         }
         composable(Routes.HISTORY) {
             HistoryRoute(

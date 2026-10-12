@@ -25,6 +25,7 @@ import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
+import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionStatus
 
@@ -81,7 +82,11 @@ fun WearHomeScreen(
 }
 
 @Composable
-fun WearTargetScreen(onSelect: (Int) -> Unit, onCustom: () -> Unit) {
+fun WearTargetScreen(
+    onSelect: (Int) -> Unit,
+    onCustom: () -> Unit,
+    counts: List<Int> = CommonCounts.defaults,
+) {
     val listState = rememberScalingLazyListState()
     Scaffold(
         timeText = { TimeText() },
@@ -93,7 +98,7 @@ fun WearTargetScreen(onSelect: (Int) -> Unit, onCustom: () -> Unit) {
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 24.dp),
         ) {
             item { ListHeader { Text("How many rounds?") } }
-            items(WearPresetTargets) { target ->
+            items(counts) { target ->
                 Chip(
                     onClick = { onSelect(target) },
                     label = { Text("$target rounds") },
@@ -112,5 +117,3 @@ fun WearTargetScreen(onSelect: (Int) -> Unit, onCustom: () -> Unit) {
         }
     }
 }
-
-val WearPresetTargets = listOf(108, 21, 11, 7, 3)

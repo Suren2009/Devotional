@@ -2,6 +2,7 @@ package com.pradarshana.core.data
 
 import androidx.room.withTransaction
 import com.pradarshana.core.data.db.CounterOperationEntity
+import com.pradarshana.core.data.db.DeletedSessionEntity
 import com.pradarshana.core.data.db.DeviceCountEntity
 import com.pradarshana.core.data.db.MetadataEntity
 import com.pradarshana.core.data.db.PradarshanaDatabase
@@ -191,9 +192,18 @@ class SessionRepository(
      */
     suspend fun clearHistory(): List<String> = write {
         val ids = dao.getTerminalSessionIds()
+        val now = clock.now()
         dao.deleteTerminalSessions()
-        dao.putMetadata(MetadataEntity(KEY_HISTORY_CLEARED_AT, clock.now()))
+        ids.forEach { dao.insertDeleted(DeletedSessionEntity(it, now)) }
+        dao.putMetadata(MetadataEntity(KEY_HISTORY_CLEARED_AT, now))
         ids
+    }
+
+    /** Removes one finished session. An in-progress session is left alone. */
+    suspend fun deleteSession(sessionId: String): Boolean = write {
+        if (dao.deleteTerminalSession(sessionId) == 0) return@write false
+        dao.insertDeleted(DeletedSessionEntity(sessionId, clock.now()))
+        true
     }
 
     suspend fun snapshot(sessionId: String): Pair<SessionSnapshot, Long>? = db.withTransaction {
@@ -212,6 +222,9 @@ class SessionRepository(
         val superseded = mutableListOf<String>()
         val result = write {
             val local = dao.getSession(remote.sessionId)
+            if (local == null && dao.isDeleted(remote.sessionId)) {
+                return@write RemoteApplyResult(false, false, false, ignored = true)
+            }
             if (local == null && remote.status.isTerminal) {
                 val clearedAt = dao.getMetadata(KEY_HISTORY_CLEARED_AT)
                 if (clearedAt != null && remote.startTime < clearedAt) {

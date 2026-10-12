@@ -16,7 +16,8 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   while a session is active.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, duration and a gentle radiance animation.
 - History, newest first, with date/time, target, completed rounds, duration and status (Completed / Incomplete),
-  a detail view per session, and *Clear history* with confirmation. History is never deleted automatically.
+  a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
+  History is never deleted automatically.
 - Light and dark themes in a saffron, cream and muted gold palette.
 
 **Wear OS watch**

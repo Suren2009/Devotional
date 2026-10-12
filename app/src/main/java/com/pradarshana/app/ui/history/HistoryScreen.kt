@@ -68,6 +68,10 @@ class HistoryViewModel(repository: SessionRepository, private val syncManager: S
     fun clearHistory() {
         viewModelScope.launch { syncManager.clearHistory() }
     }
+
+    fun delete(sessionId: String) {
+        viewModelScope.launch { syncManager.deleteSession(sessionId) }
+    }
 }
 
 @Composable
@@ -80,6 +84,7 @@ fun HistoryRoute(onBack: () -> Unit, onOpen: (String) -> Unit) {
         onBack = onBack,
         onOpen = onOpen,
         onClear = vm::clearHistory,
+        onDelete = { vm.delete(it.id) },
         onShowMap = { openSessionInMaps(context, it) },
     )
 }
@@ -92,8 +97,10 @@ fun HistoryScreen(
     onOpen: (String) -> Unit,
     onClear: () -> Unit,
     onShowMap: (PradarshanaSession) -> Unit = {},
+    onDelete: (PradarshanaSession) -> Unit = {},
 ) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -125,7 +132,12 @@ fun HistoryScreen(
                 modifier = Modifier.testTag("history_list"),
             ) {
                 items(history, key = { it.id }) { session ->
-                    HistoryItem(session, onClick = { onOpen(session.id) }, onShowMap = { onShowMap(session) })
+                    HistoryItem(
+                        session,
+                        onClick = { onOpen(session.id) },
+                        onShowMap = { onShowMap(session) },
+                        onDelete = { pendingDeleteId = session.id },
+                    )
                 }
             }
         }
@@ -146,6 +158,27 @@ fun HistoryScreen(
                 ) { Text("Clear") }
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+        )
+    }
+
+    val pendingDelete = history?.find { it.id == pendingDeleteId }
+    if (pendingDelete != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = null },
+            title = { Text("Delete this Pradarshana?") },
+            text = {
+                Text("${pendingDelete.displayTitle} will be removed from this device. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDeleteId = null
+                        onDelete(pendingDelete)
+                    },
+                    modifier = Modifier.testTag("confirm_delete"),
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDeleteId = null }) { Text("Cancel") } },
         )
     }
 }
@@ -169,7 +202,12 @@ private fun EmptyHistory(modifier: Modifier) {
 }
 
 @Composable
-private fun HistoryItem(session: PradarshanaSession, onClick: () -> Unit, onShowMap: () -> Unit) {
+private fun HistoryItem(
+    session: PradarshanaSession,
+    onClick: () -> Unit,
+    onShowMap: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val duration = DurationFormat.format(session.durationMillis())
     val statusLabel = statusLabel(session.status)
     Card(
@@ -207,9 +245,21 @@ private fun HistoryItem(session: PradarshanaSession, onClick: () -> Unit, onShow
             }
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(progress = { session.progressFraction }, modifier = Modifier.fillMaxWidth())
-            if (session.hasLocation) {
-                TextButton(onClick = onShowMap, modifier = Modifier.testTag("show_on_map_${session.id}")) {
-                    Text("Show on map")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (session.hasLocation) {
+                    TextButton(onClick = onShowMap, modifier = Modifier.testTag("show_on_map_${session.id}")) {
+                        Text("Show on map")
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = onDelete,
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                    modifier = Modifier.testTag("delete_session_${session.id}"),
+                ) {
+                    Text("Delete")
                 }
             }
         }

@@ -77,3 +77,10 @@ data class MetadataEntity(
     @PrimaryKey val key: String,
     val value: Long,
 )
+
+/** A finished session the user removed. Stops a synced copy from coming back. */
+@Entity(tableName = "deleted_sessions")
+data class DeletedSessionEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "deleted_at") val deletedAt: Long,
+)

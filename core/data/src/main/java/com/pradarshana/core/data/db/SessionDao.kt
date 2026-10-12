@@ -46,6 +46,15 @@ interface SessionDao {
     @Query("DELETE FROM sessions WHERE status IN ('COMPLETED', 'CANCELLED')")
     suspend fun deleteTerminalSessions(): Int
 
+    @Query("DELETE FROM sessions WHERE id = :id AND status IN ('COMPLETED', 'CANCELLED')")
+    suspend fun deleteTerminalSession(id: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDeleted(entry: DeletedSessionEntity)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM deleted_sessions WHERE id = :id)")
+    suspend fun isDeleted(id: String): Boolean
+
     @Query("SELECT * FROM session_device_counts WHERE session_id = :sessionId")
     suspend fun getDeviceCounts(sessionId: String): List<DeviceCountEntity>
 

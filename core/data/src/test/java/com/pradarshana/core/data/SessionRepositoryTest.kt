@@ -156,6 +156,29 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun deletingOneFinishedSessionKeepsTheOthersAndBlocksReimport() = runTest {
+        val keep = start(1)
+        repo.increment(keep)
+        clock.advance(1_000)
+        val drop = start(2)
+        repo.increment(drop)
+        repo.increment(drop)
+        val remote = repo.snapshot(drop)!!.first
+
+        assertTrue(repo.deleteSession(drop))
+        assertNull(repo.getSession(drop))
+        assertEquals(listOf(keep), repo.observeHistory().first().map { it.id })
+
+        val reimport = repo.applyRemote(remote)
+        assertTrue(reimport.ignored)
+        assertNull(repo.getSession(drop))
+
+        val ongoing = start(5)
+        assertEquals(false, repo.deleteSession(ongoing))
+        assertEquals(ongoing, repo.getOngoingSession()!!.id)
+    }
+
+    @Test
     fun historyIsMostRecentFirstAndCanBeCleared() = runTest {
         val ids = (1..3).map {
             clock.advance(10_000)

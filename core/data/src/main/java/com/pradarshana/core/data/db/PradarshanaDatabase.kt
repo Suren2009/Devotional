@@ -16,6 +16,7 @@ import com.pradarshana.core.model.SessionStatus
         DeviceCountEntity::class,
         CounterOperationEntity::class,
         MetadataEntity::class,
+        DeletedSessionEntity::class,
     ],
     version = PradarshanaDatabase.VERSION,
     exportSchema = true,
@@ -26,7 +27,7 @@ abstract class PradarshanaDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "pradarshana.db"
 
         /**
@@ -45,7 +46,16 @@ abstract class PradarshanaDatabase : RoomDatabase() {
          * Explicit migrations for every schema change. History must never be lost on upgrade, so
          * destructive fallback is deliberately not enabled.
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        /** Records which finished sessions the user removed, without touching the ones they kept. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `deleted_sessions` (`id` TEXT NOT NULL, `deleted_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
         fun create(context: Context, name: String? = NAME): PradarshanaDatabase {
             val builder = if (name == null) {

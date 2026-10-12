@@ -41,6 +41,30 @@ class SessionMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun version2KeepsSessionsWhenDeletedTableIsAdded() {
+        helper.createDatabase("migrate-v2.db", 2).apply {
+            execSQL(
+                """INSERT INTO sessions (id, target_count, completed_count, start_time, end_time, status,
+                   status_updated_at, status_updated_by, last_updated_time, origin_device_id, local_version,
+                   synced_version, title)
+                   VALUES ('s1', 11, 11, 1, 2, 'COMPLETED', 2, 'phone', 2, 'phone', 1, 1, 'Temple')""",
+            )
+            close()
+        }
+        val migrated = helper.runMigrationsAndValidate("migrate-v2.db", 3, true, PradarshanaDatabase.MIGRATION_2_3)
+        migrated.query("SELECT title, completed_count FROM sessions WHERE id = 's1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Temple", cursor.getString(0))
+            assertEquals(11, cursor.getInt(1))
+        }
+        migrated.query("SELECT COUNT(*) FROM deleted_sessions").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(0, cursor.getInt(0))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DB_NAME = "migrate-v1.db"
     }

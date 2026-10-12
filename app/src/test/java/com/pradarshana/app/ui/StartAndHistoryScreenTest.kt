@@ -137,6 +137,7 @@ class StartAndHistoryScreenTest {
         var cleared = false
         var opened: String? = null
         var mapped: String? = null
+        var deleted: String? = null
         val sessions = listOf(
             PradarshanaSession(
                 "new", 108, 108, 2_000_000, 2_600_000, SessionStatus.COMPLETED, 2_600_000,
@@ -152,6 +153,7 @@ class StartAndHistoryScreenTest {
                     onOpen = { opened = it },
                     onClear = { cleared = true },
                     onShowMap = { mapped = it.id },
+                    onDelete = { deleted = it.id },
                 )
             }
         }
@@ -166,6 +168,14 @@ class StartAndHistoryScreenTest {
         assertEquals("new", mapped)
         compose.onNode(hasText(" / 21 rounds"), useUnmergedTree = true).performClick()
         assertEquals("old", opened)
+
+        compose.onNodeWithTag("delete_session_old").performClick()
+        compose.onNodeWithText("Delete this Pradarshana?").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(null, deleted)
+        compose.onNodeWithTag("delete_session_old").performClick()
+        compose.onNodeWithTag("confirm_delete").performClick()
+        assertEquals("old", deleted)
 
         compose.onNodeWithTag("clear_history").performClick()
         compose.onNodeWithText("Cancel").performClick()

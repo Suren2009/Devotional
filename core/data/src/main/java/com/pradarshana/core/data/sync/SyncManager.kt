@@ -81,6 +81,17 @@ class SyncManager(
         }
     }
 
+    suspend fun deleteSession(sessionId: String) {
+        if (!repository.deleteSession(sessionId)) return
+        try {
+            transport.delete(listOf(sessionId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger("Removing synced session $sessionId failed", e)
+        }
+    }
+
     suspend fun clearHistory() {
         val removed = repository.clearHistory()
         if (removed.isEmpty()) return

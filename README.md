@@ -16,7 +16,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   Pause/Resume, and End Session with a confirmation dialog. Each + can give a short 70 ms vibration
   (on by default, and switched off in Settings), and reaching the target vibrates for half a second.
   After two taps on **+**, the screen can turn black except that button, to save battery. This is on by
-  default and can be turned off in Settings (and on the watch home screen). Double-tap anywhere else to
+  default and can be turned off in Settings. Double-tap anywhere else to
   bring the count back. Finishing the session shows the normal completion screen. The screen stays on
   while a session is active.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
@@ -32,10 +32,10 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - Choice of Pradarshana or Chanting, then the same common counts as the phone, plus a custom value (on-screen stepper or rotating crown).
 - Counting screen for round displays: large count under **Total rounds**, or **No. of times chanting** for a chant, target and remaining, progress arc, a large **+** button and
   Pause/Resume. *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk
-  cannot end the session. After two taps on **+**, the watch can turn black except that button. This is on by
-  default. Double-tap elsewhere to bring the count back, or finish the session to see the completion screen.
+  cannot end the session. After two taps on **+**, the watch turns black except that button. Double-tap
+  elsewhere to bring the count back, or finish the session to see the completion screen.
 - Completion screen with a half-second vibration. Each + vibrates for 70 ms unless that is turned off. The watch
-  home has switches for tap vibration and for darkening after two taps. Both are on by default.
+  home has the tap-vibration switch, on by default.
 - Works stand-alone; it synchronises with the phone whenever they are connected.
 
 Every count is saved immediately, so an active session survives the app being closed or the process being killed

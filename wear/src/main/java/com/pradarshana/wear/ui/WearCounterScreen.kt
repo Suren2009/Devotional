@@ -83,21 +83,12 @@ fun WearCounterRoute(
     when (val s = state) {
         CounterUiState.Loading -> Unit
         CounterUiState.Missing -> LaunchedEffect(Unit) { onEnded() }
-        is CounterUiState.Ready -> {
-            val batterySaverEnabled = if (feedback == null) {
-                true
-            } else {
-                val enabled by feedback.blackoutAfterTwoTaps.collectAsStateWithLifecycle()
-                enabled
-            }
-            WearCounterScreen(
-                session = s.session,
-                onIncrement = viewModel::increment,
-                onTogglePause = viewModel::togglePause,
-                onEnd = viewModel::endSession,
-                batterySaverEnabled = batterySaverEnabled,
-            )
-        }
+        is CounterUiState.Ready -> WearCounterScreen(
+            session = s.session,
+            onIncrement = viewModel::increment,
+            onTogglePause = viewModel::togglePause,
+            onEnd = viewModel::endSession,
+        )
     }
 }
 

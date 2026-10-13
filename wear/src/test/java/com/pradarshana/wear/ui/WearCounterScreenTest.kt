@@ -140,24 +140,7 @@ class WearCounterScreenTest {
         compose.onNodeWithText("4 / 21").assertExists()
         compose.onNodeWithTag("wear_resume").performClick()
         assertEquals("w1", resumed)
-    }
-
-    @Test
-    fun homeBatterySaverChipStartsOnAndToggles() {
-        var enabled = true
-        compose.setContent {
-            WearTheme {
-                WearHomeScreen(
-                    ongoing = null,
-                    onResume = {},
-                    onStart = {},
-                    blackoutAfterTwoTaps = enabled,
-                    onToggleBlackout = { enabled = !enabled },
-                )
-            }
-        }
-        compose.onNodeWithTag("wear_battery_saver").performClick()
-        assertEquals(false, enabled)
+        compose.onNodeWithText("Dark after two taps").assertDoesNotExist()
     }
 
     @Test

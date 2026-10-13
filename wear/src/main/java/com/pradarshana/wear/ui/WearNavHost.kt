@@ -88,7 +88,6 @@ fun WearNavHost(
         composable(WearRoutes.HOME) {
             val feedback = (LocalContext.current.applicationContext as PradarshanaContainerOwner).container.countFeedback
             val vibrateOnCount by feedback.vibrateOnCount.collectAsStateWithLifecycle()
-            val blackoutAfterTwoTaps by feedback.blackoutAfterTwoTaps.collectAsStateWithLifecycle()
             val vm = wearViewModel { WearHomeViewModel(it.repository) }
             val ongoing by vm.ongoing.collectAsStateWithLifecycle()
             WearHomeScreen(
@@ -97,8 +96,6 @@ fun WearNavHost(
                 onStart = { navController.navigate(WearRoutes.TARGET) },
                 vibrateOnCount = vibrateOnCount,
                 onToggleVibration = { feedback.setVibrateOnCount(!feedback.vibrateOnCount.value) },
-                blackoutAfterTwoTaps = blackoutAfterTwoTaps,
-                onToggleBlackout = { feedback.setBlackoutAfterTwoTaps(!feedback.blackoutAfterTwoTaps.value) },
             )
         }
         composable(WearRoutes.TARGET) {

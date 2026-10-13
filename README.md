@@ -31,9 +31,11 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 - A **Start Pradarshana** tile for the watch face. Add it from the tiles list (press and hold the watch face, then tiles). One tap resumes the session already in progress, or starts a Pradarshana using the latest walk's target and title. The first one uses 108 rounds. The tile does not ask for a place; start from the app when the location should be saved.
 - Choice of Pradarshana or Chanting, then the same common counts as the phone, plus a custom value (on-screen stepper or rotating crown).
 - Counting screen for round displays: large count under **Total rounds**, or **No. of times chanting** for a chant, target and remaining, progress arc, a large **+** button and
-  Pause/Resume. *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk
+  Pause/Resume. The watch screen stays on for the whole session, including while paused and while the display is black.
+  *End session* is only offered while paused and asks for confirmation, so a stray touch mid-walk
   cannot end the session. After two taps on **+**, the watch turns black except that button. Double-tap
-  elsewhere to bring the count back, or finish the session to see the completion screen.
+  elsewhere to bring the count back, or finish the session to see the completion screen. The completion screen
+  does not keep the display awake.
 - Completion screen with a half-second vibration. Each + vibrates for 70 ms unless that is turned off. The watch
   home has the tap-vibration switch, on by default.
 - Works stand-alone; it synchronises with the phone whenever they are connected.

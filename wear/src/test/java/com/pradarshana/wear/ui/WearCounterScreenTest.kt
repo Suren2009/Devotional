@@ -1,6 +1,16 @@
 package com.pradarshana.wear.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.View
+import android.view.WindowManager
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.doubleClick
@@ -25,6 +35,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -174,4 +186,58 @@ class WearCounterScreenTest {
         compose.onNodeWithText("Done").performClick()
         assertEquals(true, done)
     }
+
+    @Test
+    fun sessionKeepsTheWatchScreenOnUntilCountingEnds() {
+        var session by mutableStateOf(PradarshanaSession("s", 108, 1, 0, null, SessionStatus.ACTIVE, 0))
+        var counting by mutableStateOf(true)
+        var screen: View? = null
+        compose.setContent {
+            WearTheme {
+                if (counting) {
+                    WearCounterScreen(session, onIncrement = {}, onTogglePause = {}, onEnd = {})
+                } else {
+                    WearCompletionScreen(
+                        session.copy(completedCount = 108, status = SessionStatus.COMPLETED, endTime = 1_930_000),
+                        onDone = {},
+                    )
+                }
+                val current = LocalView.current
+                SideEffect { screen = current }
+            }
+        }
+        compose.waitForIdle()
+        assertTrue(screen!!.keepsDisplayOn())
+
+        compose.onNodeWithTag("wear_increment").performClick()
+        compose.onNodeWithTag("wear_increment").performClick()
+        compose.onNodeWithTag("battery_saver").assertExists()
+        compose.waitForIdle()
+        assertTrue(screen!!.keepsDisplayOn())
+
+        session = session.copy(status = SessionStatus.PAUSED)
+        compose.waitForIdle()
+        assertTrue(screen!!.keepsDisplayOn())
+
+        counting = false
+        compose.waitUntilReal {
+            compose.onAllNodes(hasTestTag("wear_completed_title")).fetchSemanticsNodes().isNotEmpty()
+        }
+        assertFalse(screen!!.keepScreenOn)
+        assertFalse(screen!!.context.activityWindowKeepsScreenOn())
+    }
+}
+
+private fun View.keepsDisplayOn(): Boolean = keepScreenOn && context.activityWindowKeepsScreenOn()
+
+private fun Context.activityWindowKeepsScreenOn(): Boolean {
+    var current: Context = this
+    while (current is ContextWrapper) {
+        if (current is Activity) {
+            val flags = current.window.attributes.flags
+            return (flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0
+        }
+        current = current.baseContext
+    }
+    return false
 }

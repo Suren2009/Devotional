@@ -17,7 +17,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.WindowManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -100,6 +105,7 @@ fun WearCounterScreen(
     onEnd: () -> Unit,
     batterySaverEnabled: Boolean = true,
 ) {
+    KeepScreenOn()
     val paused = session.status == SessionStatus.PAUSED
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
     var blackout by rememberSaveable { mutableStateOf(false) }
@@ -262,4 +268,28 @@ fun WearCounterScreen(
             )
         }
     }
+}
+
+/** The counting screen, including pause and the black screen, keeps the watch display awake. */
+@Composable
+private fun KeepScreenOn() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = view.context.findActivity()?.window
+        view.keepScreenOn = true
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            view.keepScreenOn = false
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+}
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }

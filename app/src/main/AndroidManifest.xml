@@ -6,6 +6,10 @@
     <!-- Used only to remember where a session started. Counting works if this is denied. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Automatic round counting while a Pradarshana is in progress. Counting still works with + if this is denied. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- History map tiles. The counter itself does not use the network. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -31,5 +35,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".count.AutoCountService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 </manifest>

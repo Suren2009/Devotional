@@ -289,4 +289,16 @@ class SessionRepositoryTest {
         assertEquals(10_000, session.durationMillis())
         assertEquals(session.startTime + 30_000, session.endTime)
     }
+
+    @Test
+    fun rememberStartLocationFillsAMissingPlaceAndDoesNotReplaceOne() = runTest {
+        val id = start(3)
+        repo.rememberStartLocation(id, 13.0, 80.0)
+        val saved = repo.getSession(id)!!
+        assertEquals(13.0, saved.latitude!!, 0.0)
+        assertEquals(80.0, saved.longitude!!, 0.0)
+        repo.rememberStartLocation(id, 1.0, 2.0)
+        assertEquals(13.0, repo.getSession(id)!!.latitude!!, 0.0)
+        assertEquals(80.0, repo.getSession(id)!!.longitude!!, 0.0)
+    }
 }

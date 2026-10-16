@@ -151,6 +151,26 @@ class SessionRepository(
         return StartResult.Started(id)
     }
 
+    /** Keeps the place a walk started, once, so a later automatic count can recognise the same point. */
+    suspend fun rememberStartLocation(sessionId: String, latitude: Double, longitude: Double) {
+        val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
+        if (lat == null || lng == null) return
+        val changed = write {
+            val session = dao.getSession(sessionId) ?: return@write false
+            if (session.latitude != null || session.status.isTerminal) return@write false
+            dao.upsertSession(
+                session.copy(
+                    latitude = lat,
+                    longitude = lng,
+                    lastUpdatedTime = clock.now(),
+                    localVersion = session.localVersion + 1,
+                ),
+            )
+            true
+        }
+        if (changed) notifyChanged(sessionId)
+    }
+
     suspend fun increment(sessionId: String): IncrementResult {
         val result = write {
             val session = dao.getSession(sessionId)

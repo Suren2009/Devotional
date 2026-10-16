@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.pradarshana.app.count.AutoCountHost
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.Mandala
 import com.pradarshana.core.data.SessionRepository
@@ -66,6 +67,7 @@ fun HomeRoute(
 ) {
     val vm = appViewModel { HomeViewModel(it.repository) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
+    AutoCountHost(ongoing)
     HomeScreen(
         ongoing = ongoing,
         onStart = onStart,

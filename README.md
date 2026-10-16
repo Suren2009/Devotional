@@ -19,12 +19,18 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   default and can be turned off in Settings. Double-tap anywhere else to
   bring the count back. Finishing the session shows the normal completion screen. The screen stays on
   while a session is active.
+  **Count when I return to the start** is off until it is turned on in Settings. It applies only to a Pradarshana.
+  The walk must go at least the chosen distance from the start (default 30 meters) and then come back inside the
+  return distance (default 20 meters). Both distances are set in Settings. While it is on, the counting screen
+  stays black and awake, and the round count is shown on the button. That button does not add a round.
+  Double-tap elsewhere to reach Pause and End. Chanting still uses **+**. The watch is unchanged.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
 - **Ask Baba** on the phone. Think of one question, enter a number from 1 to 720, and read original guidance in English and Telugu. A Sai Baba picture is chosen from five, with Faith and Preserve moving beside it.
 - History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, total time and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
   History is never deleted automatically.
 - Settings for a light theme, a dark theme, or the phone’s system theme, in a saffron, cream and muted gold palette.
+  Counting settings include tap vibration, darken after two counts, and automatic Pradarshana counting with its two distances.
 
 **Wear OS watch**
 - Home: app name, *Start Pradarshana*, and *Resume* when a session exists.

@@ -1,7 +1,10 @@
 package com.pradarshana.app.ui
 
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
@@ -27,6 +30,7 @@ import com.pradarshana.core.model.SessionStatus
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -212,5 +216,39 @@ class CounterScreenTest {
         compose.onNodeWithTag("confirm_end_button").performClick()
         compose.waitUntilReal { endedCalls == 1 }
         assertEquals(SessionStatus.CANCELLED, runBlocking { repo.getSession(id)!!.status })
+    }
+
+    @Test
+    fun automaticCountingShowsTheRoundAndDoesNotAddOne() {
+        var taps = 0
+        val session = PradarshanaSession("s", 108, 4, 0, null, SessionStatus.PAUSED, 0)
+        var keepOn = false
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = session,
+                    onIncrement = { taps++ },
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    autoCount = true,
+                )
+                val view = LocalView.current
+                SideEffect { keepOn = view.keepScreenOn }
+            }
+        }
+        compose.onNodeWithTag("battery_saver").assertExists()
+        compose.onNodeWithTag("auto_count_button").assertHasNoClickAction()
+        compose.onNodeWithContentDescription("4 rounds, counted automatically").assertExists()
+        compose.onNodeWithText("4").assertExists()
+        assertEquals(0, taps)
+        assertTrue(keepOn)
+        compose.onNodeWithTag("battery_saver").performTouchInput { doubleClick(Offset(8f, 8f)) }
+        compose.waitUntilReal { compose.onAllNodes(hasTestTag("pause_button")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("battery_saver").assertDoesNotExist()
+        compose.onNodeWithTag("increment_button").assertDoesNotExist()
+        compose.onNodeWithTag("auto_count_button").assertHasNoClickAction()
+        assertEquals(0, taps)
+        assertTrue(keepOn)
     }
 }

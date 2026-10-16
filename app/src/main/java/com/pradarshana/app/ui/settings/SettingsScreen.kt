@@ -15,9 +15,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -26,6 +28,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,10 +38,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.PradarshanaApp
 import com.pradarshana.app.ui.theme.ThemeMode
+import com.pradarshana.core.model.AutoCountDistances
 
 @Composable
 fun SettingsRoute(onBack: () -> Unit) {
@@ -44,6 +51,9 @@ fun SettingsRoute(onBack: () -> Unit) {
     val mode by app.themeStore.mode.collectAsStateWithLifecycle()
     val vibrateOnCount by app.container.countFeedback.vibrateOnCount.collectAsStateWithLifecycle()
     val blackoutAfterTwoTaps by app.container.countFeedback.blackoutAfterTwoTaps.collectAsStateWithLifecycle()
+    val autoCount by app.container.countFeedback.autoCount.collectAsStateWithLifecycle()
+    val awayMeters by app.container.countFeedback.awayMeters.collectAsStateWithLifecycle()
+    val returnMeters by app.container.countFeedback.returnMeters.collectAsStateWithLifecycle()
     SettingsScreen(
         mode = mode,
         onMode = app.themeStore::set,
@@ -51,6 +61,11 @@ fun SettingsRoute(onBack: () -> Unit) {
         onVibrateOnCount = app.container.countFeedback::setVibrateOnCount,
         blackoutAfterTwoTaps = blackoutAfterTwoTaps,
         onBlackoutAfterTwoTaps = app.container.countFeedback::setBlackoutAfterTwoTaps,
+        autoCount = autoCount,
+        onAutoCount = app.container.countFeedback::setAutoCount,
+        awayMeters = awayMeters,
+        returnMeters = returnMeters,
+        onDistances = app.container.countFeedback::setDistances,
         onBack = onBack,
     )
 }
@@ -65,6 +80,11 @@ fun SettingsScreen(
     onVibrateOnCount: (Boolean) -> Unit = {},
     blackoutAfterTwoTaps: Boolean = true,
     onBlackoutAfterTwoTaps: (Boolean) -> Unit = {},
+    autoCount: Boolean = false,
+    onAutoCount: (Boolean) -> Unit = {},
+    awayMeters: Int = AutoCountDistances.DEFAULT_AWAY_METERS,
+    returnMeters: Int = AutoCountDistances.DEFAULT_RETURN_METERS,
+    onDistances: (Int, Int) -> Unit = { _, _ -> },
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -174,6 +194,88 @@ fun SettingsScreen(
                 }
                 Switch(checked = blackoutAfterTwoTaps, onCheckedChange = onBlackoutAfterTwoTaps)
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .clickable(role = Role.Switch) { onAutoCount(!autoCount) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("auto_count"),
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Count when I return to the start", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "For a Pradarshana. The screen stays black and awake, and the button shows the round count.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = autoCount, onCheckedChange = onAutoCount)
+            }
+            if (autoCount) {
+                DistanceFields(awayMeters, returnMeters, onDistances)
+            }
         }
     }
+}
+
+@Composable
+private fun DistanceFields(
+    awayMeters: Int,
+    returnMeters: Int,
+    onDistances: (Int, Int) -> Unit,
+) {
+    var awayText by remember(awayMeters) { mutableStateOf(awayMeters.toString()) }
+    var returnText by remember(returnMeters) { mutableStateOf(returnMeters.toString()) }
+    val away = awayText.toIntOrNull()
+    val back = returnText.toIntOrNull()
+    val valid = away != null && back != null && AutoCountDistances.isValid(away, back)
+    Spacer(Modifier.height(8.dp))
+    OutlinedTextField(
+        value = awayText,
+        onValueChange = { raw ->
+            awayText = raw.filter { it.isDigit() }.take(3)
+            publishDistances(awayText, returnText, onDistances)
+        },
+        label = { Text("Walk away from the start (meters)") },
+        supportingText = { Text("How far the walk must go before a return can count. Default 30.") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .testTag("auto_count_away"),
+    )
+    OutlinedTextField(
+        value = returnText,
+        onValueChange = { raw ->
+            returnText = raw.filter { it.isDigit() }.take(3)
+            publishDistances(awayText, returnText, onDistances)
+        },
+        label = { Text("Back within (meters)") },
+        supportingText = {
+            Text(
+                if (valid || away == null || back == null) {
+                    "A round counts when the walk comes back inside this distance. Default 20."
+                } else {
+                    "This must be shorter than the walk-away distance."
+                },
+            )
+        },
+        isError = away != null && back != null && !valid,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .testTag("auto_count_return"),
+    )
+}
+
+private fun publishDistances(awayText: String, returnText: String, onDistances: (Int, Int) -> Unit) {
+    val away = awayText.toIntOrNull() ?: return
+    val back = returnText.toIntOrNull() ?: return
+    if (AutoCountDistances.isValid(away, back)) onDistances(away, back)
 }

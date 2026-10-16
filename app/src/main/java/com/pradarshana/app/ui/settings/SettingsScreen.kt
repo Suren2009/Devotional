@@ -205,9 +205,13 @@ fun SettingsScreen(
                     .testTag("auto_count"),
             ) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text("Count when I return to the start", style = MaterialTheme.typography.titleMedium)
+                    Text("Automatic Pradarshana counting", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "For a Pradarshana. The screen stays black and awake, and the button shows the round count.",
+                        if (autoCount) {
+                            "Automatic. Choose Manual or Automatic on the start screen too."
+                        } else {
+                            "Manual. Tap + on the usual counting screen. The start screen can switch this."
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -8,7 +8,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 
 **Phone**
 - Home screen with *Start Pradarshana*, *Pradarshana History*, and a *Resume* card while a session is in progress.
-- A session is either a **Pradarshana** (rounds walked) or **Chanting** (names). The start screen offers both, and remembers the latest choice.
+- A session is either a **Pradarshana** (rounds walked) or **Chanting** (names). The start screen offers both, and remembers the latest choice. A Pradarshana also offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start.
 - Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
 - An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
@@ -19,11 +19,12 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   default and can be turned off in Settings. Double-tap anywhere else to
   bring the count back. Finishing the session shows the normal completion screen. The screen stays on
   while a session is active.
-  **Count when I return to the start** is off until it is turned on in Settings. It applies only to a Pradarshana.
-  The walk must go at least the chosen distance from the start (default 30 meters) and then come back inside the
-  return distance (default 20 meters). Both distances are set in Settings. While it is on, the counting screen
-  stays black and awake, and the round count is shown on the button. That button does not add a round.
-  Double-tap elsewhere to reach Pause and End. Chanting still uses **+**. The watch is unchanged.
+  Manual counting is unchanged: the mandala, the big count, and **+**. Automatic counting is chosen on the start
+  screen or in Settings, and it applies only to a Pradarshana. The walk must go at least the chosen distance from
+  the start (default 30 meters) and then come back inside the return distance (default 20 meters). Both distances
+  are set in Settings. While automatic counting is on, the counting screen stays black and awake, and the round
+  count is shown on the button. That button does not add a round. Double-tap elsewhere to reach Pause and End.
+  Chanting still uses **+**. The watch is unchanged.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
 - **Ask Baba** on the phone. Think of one question, enter a number from 1 to 720, and read original guidance in English and Telugu. A Sai Baba picture is chosen from five, with Faith and Preserve moving beside it.
 - History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, total time and status (Completed / Incomplete),

@@ -55,6 +55,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.ui.appViewModel
+import com.pradarshana.core.data.CountFeedbackPreferences
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.StartResult
 import com.pradarshana.core.data.location.FusedLocationCapture
@@ -157,6 +159,10 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
     val context = LocalContext.current
     val vm = appViewModel { StartViewModel(it.repository, FusedLocationCapture(context.applicationContext)) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
+    val feedback = (context.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
+    val savedAutomatic = if (feedback == null) false else SavedAutomaticCount(feedback)
+    var chosenAutomatic by remember { mutableStateOf<Boolean?>(null) }
+    val automatic = chosenAutomatic ?: savedAutomatic
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.start(granted || context.hasLocationPermission())
     }
@@ -171,12 +177,21 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
         onKindChange = vm::onKindChange,
         onTitleChange = vm::onTitleChange,
         onInputChange = vm::onInputChange,
+        automatic = automatic,
+        onAutomaticChange = { chosenAutomatic = it },
         onStart = {
+            if (vm.kind == SessionKind.PRADARSHANA) feedback?.setAutoCount(automatic)
             if (context.hasLocationPermission()) vm.start(captureLocation = true)
             else permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         },
         onBack = onBack,
     )
+}
+
+@Composable
+private fun SavedAutomaticCount(feedback: CountFeedbackPreferences): Boolean {
+    val enabled by feedback.autoCount.collectAsStateWithLifecycle()
+    return enabled
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -193,6 +208,8 @@ fun StartScreen(
     counts: List<Int> = CommonCounts.defaults,
     kind: SessionKind = SessionKind.PRADARSHANA,
     onKindChange: (SessionKind) -> Unit = {},
+    automatic: Boolean = false,
+    onAutomaticChange: (Boolean) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -235,6 +252,39 @@ fun StartScreen(
                         Text(option.label)
                     }
                 }
+            }
+            if (kind == SessionKind.PRADARSHANA) {
+                Spacer(Modifier.height(16.dp))
+                Text("Count each round", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !automatic,
+                        onClick = { onAutomaticChange(false) },
+                        shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        modifier = Modifier.testTag("count_mode_manual"),
+                    ) {
+                        Text("Manual")
+                    }
+                    SegmentedButton(
+                        selected = automatic,
+                        onClick = { onAutomaticChange(true) },
+                        shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        modifier = Modifier.testTag("count_mode_auto"),
+                    ) {
+                        Text("Automatic")
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (automatic) {
+                        "A round is counted when you return to the start. The screen stays on and shows the count."
+                    } else {
+                        "Tap + for each round. This is the usual counting screen."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Spacer(Modifier.height(20.dp))
             OutlinedTextField(

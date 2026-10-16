@@ -21,6 +21,9 @@ import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -239,5 +242,34 @@ class StartAndHistoryScreenTest {
         compose.onNodeWithTag("clear_history").performClick()
         compose.onNodeWithTag("confirm_clear").performClick()
         assertTrue(cleared)
+    }
+
+    @Test
+    fun pradakshanaChoosesManualOrAutomaticAndChantingDoesNot() {
+        var automatic by mutableStateOf(false)
+        var kind by mutableStateOf(SessionKind.PRADARSHANA)
+        compose.setContent {
+            PradarshanaTheme {
+                StartScreen(
+                    input = "",
+                    error = null,
+                    ongoing = null,
+                    onInputChange = {},
+                    onStart = {},
+                    onBack = {},
+                    kind = kind,
+                    onKindChange = { kind = it },
+                    automatic = automatic,
+                    onAutomaticChange = { automatic = it },
+                )
+            }
+        }
+        compose.onNodeWithTag("count_mode_manual").assertExists()
+        compose.onNodeWithText("Tap + for each round. This is the usual counting screen.").assertExists()
+        compose.onNodeWithTag("count_mode_auto").performClick()
+        assertEquals(true, automatic)
+        compose.onNodeWithTag("kind_CHANTING").performClick()
+        compose.onNodeWithTag("count_mode_manual").assertDoesNotExist()
+        compose.onNodeWithTag("count_mode_auto").assertDoesNotExist()
     }
 }

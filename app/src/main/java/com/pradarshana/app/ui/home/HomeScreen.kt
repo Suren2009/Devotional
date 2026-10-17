@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.pradarshana.app.count.AutoCountHost
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.Mandala
 import com.pradarshana.core.data.SessionRepository
@@ -63,9 +64,11 @@ fun HomeRoute(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onAskBaba: () -> Unit,
+    onStotras: () -> Unit,
 ) {
     val vm = appViewModel { HomeViewModel(it.repository) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
+    AutoCountHost(ongoing)
     HomeScreen(
         ongoing = ongoing,
         onStart = onStart,
@@ -73,6 +76,7 @@ fun HomeRoute(
         onHistory = onHistory,
         onSettings = onSettings,
         onAskBaba = onAskBaba,
+        onStotras = onStotras,
     )
 }
 
@@ -84,6 +88,7 @@ fun HomeScreen(
     onHistory: () -> Unit,
     onSettings: () -> Unit = {},
     onAskBaba: () -> Unit = {},
+    onStotras: () -> Unit = {},
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -138,6 +143,16 @@ fun HomeScreen(
                 Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text("Pradarshana History", style = MaterialTheme.typography.labelLarge)
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onStotras,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .testTag("stotras_button"),
+            ) {
+                Text("Stotras", style = MaterialTheme.typography.labelLarge)
             }
             Spacer(Modifier.height(12.dp))
             OutlinedButton(

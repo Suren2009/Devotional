@@ -1,6 +1,9 @@
 package com.pradarshana.app.ui.counter
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,9 +63,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pradarshana.app.count.AutoCountHost
+import com.pradarshana.app.count.AutoCountService
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.CompletionVibration
 import com.pradarshana.core.data.PradarshanaContainerOwner
@@ -73,6 +80,7 @@ import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.components.ProgressRing
 import com.pradarshana.app.ui.theme.CounterNumberStyle
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
 
 @Composable
@@ -106,13 +114,19 @@ fun CounterRoute(
         }
         CounterUiState.Missing -> LaunchedEffect(Unit) { onEnded() }
         is CounterUiState.Ready -> {
-            KeepScreenOn(s.session.status == SessionStatus.ACTIVE)
             val batterySaverEnabled = if (feedback == null) {
                 true
             } else {
                 val enabled by feedback.blackoutAfterTwoTaps.collectAsStateWithLifecycle()
                 enabled
             }
+            val autoCount = if (feedback == null || s.session.kind != SessionKind.PRADARSHANA) {
+                false
+            } else {
+                val enabled by feedback.autoCount.collectAsStateWithLifecycle()
+                enabled
+            }
+            AutoCountHost(s.session)
             CounterScreen(
                 session = s.session,
                 onIncrement = viewModel::increment,
@@ -120,6 +134,7 @@ fun CounterRoute(
                 onEndSession = viewModel::endSession,
                 onBack = onBack,
                 batterySaverEnabled = batterySaverEnabled,
+                autoCount = autoCount,
             )
         }
     }
@@ -134,9 +149,13 @@ fun CounterScreen(
     onEndSession: () -> Unit,
     onBack: () -> Unit,
     batterySaverEnabled: Boolean = true,
+    autoCount: Boolean = false,
 ) {
+    val automatic = autoCount && session.kind == SessionKind.PRADARSHANA
+    val autoStatus by AutoCountService.progress.collectAsStateWithLifecycle()
+    KeepScreenOn(automatic || session.status == SessionStatus.ACTIVE)
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
-    var blackout by rememberSaveable { mutableStateOf(false) }
+    var blackout by rememberSaveable { mutableStateOf(automatic) }
     var plusClicks by rememberSaveable { mutableIntStateOf(0) }
     val paused = session.status == SessionStatus.PAUSED
 
@@ -145,8 +164,11 @@ fun CounterScreen(
         plusClicks = 0
     }
 
+    LaunchedEffect(automatic) {
+        if (automatic) blackout = true
+    }
     LaunchedEffect(batterySaverEnabled) {
-        if (!batterySaverEnabled) wake()
+        if (!batterySaverEnabled && !automatic) wake()
     }
 
     fun onPlus() {
@@ -165,10 +187,12 @@ fun CounterScreen(
 
     if (blackout && session.status != SessionStatus.COMPLETED) {
         BlackCountingScreen(
-            enabled = session.canIncrement,
+            enabled = session.canIncrement && !automatic,
             paused = paused,
             remaining = session.remainingCount,
-            onPlus = ::onPlus,
+            countLabel = if (automatic) session.completedCount.toString() else null,
+            statusText = if (automatic) autoStatus else null,
+            onPlus = if (automatic) ({}) else ::onPlus,
             onWake = ::wake,
         )
         return
@@ -250,20 +274,32 @@ fun CounterScreen(
             }
             Spacer(Modifier.height(20.dp))
 
-            Button(
-                onClick = ::onPlus,
-                enabled = session.canIncrement,
-                shape = CircleShape,
-                contentPadding = ButtonDefaults.ContentPadding,
-                modifier = Modifier
-                    .size(136.dp)
-                    .testTag("increment_button")
-                    .semantics {
-                        contentDescription = "Count one round"
-                        stateDescription = if (paused) "Paused" else "${session.remainingCount} remaining"
-                    },
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
+            if (automatic) {
+                RoundCountButton(session.completedCount)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    autoStatus,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("auto_count_status"),
+                )
+            } else {
+                Button(
+                    onClick = ::onPlus,
+                    enabled = session.canIncrement,
+                    shape = CircleShape,
+                    contentPadding = ButtonDefaults.ContentPadding,
+                    modifier = Modifier
+                        .size(136.dp)
+                        .testTag("increment_button")
+                        .semantics {
+                            contentDescription = "Count one round"
+                            stateDescription = if (paused) "Paused" else "${session.remainingCount} remaining"
+                        },
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
+                }
             }
             Spacer(Modifier.height(20.dp))
 
@@ -327,6 +363,8 @@ private fun BlackCountingScreen(
     remaining: Int,
     onPlus: () -> Unit,
     onWake: () -> Unit,
+    countLabel: String? = null,
+    statusText: String? = null,
 ) {
     val view = LocalView.current
     DisposableEffect(view) {
@@ -352,19 +390,55 @@ private fun BlackCountingScreen(
             .semantics { contentDescription = "Screen darkened to save battery. Double tap outside the plus button to show the count." },
         contentAlignment = Alignment.Center,
     ) {
-        Button(
-            onClick = onPlus,
-            enabled = enabled,
-            shape = CircleShape,
-            modifier = Modifier
-                .size(136.dp)
-                .testTag("increment_button")
-                .semantics {
-                    contentDescription = "Count one round"
-                    stateDescription = if (paused) "Paused" else "$remaining remaining"
-                },
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
+        if (countLabel == null) {
+            Button(
+                onClick = onPlus,
+                enabled = enabled,
+                shape = CircleShape,
+                modifier = Modifier
+                    .size(136.dp)
+                    .testTag("increment_button")
+                    .semantics {
+                        contentDescription = "Count one round"
+                        stateDescription = if (paused) "Paused" else "$remaining remaining"
+                    },
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
+            }
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 28.dp)) {
+                RoundCountButton(countLabel.toIntOrNull() ?: 0)
+                if (!statusText.isNullOrBlank()) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        statusText,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("auto_count_status"),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoundCountButton(count: Int) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .size(136.dp)
+            .testTag("auto_count_button")
+            .semantics { contentDescription = "$count rounds, counted automatically" },
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                count.toString(),
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontSize = 48.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -387,7 +461,25 @@ private fun Stat(label: String, value: String, tag: String) {
 private fun KeepScreenOn(enabled: Boolean) {
     val view = LocalView.current
     DisposableEffect(view, enabled) {
+        val window = view.context.findActivity()?.window
         view.keepScreenOn = enabled
-        onDispose { view.keepScreenOn = false }
+        if (enabled) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            view.keepScreenOn = false
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }

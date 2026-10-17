@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,13 +14,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,14 +46,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -103,6 +114,8 @@ fun AskBabaScreen(onBack: () -> Unit) {
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -116,48 +129,64 @@ fun AskBabaScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             BabaPortrait(portraits[portrait])
             Spacer(Modifier.height(20.dp))
-            OutlinedTextField(
-                value = numberText,
-                onValueChange = { raw ->
-                    numberText = raw.filter { it.isDigit() }.take(3)
-                    error = null
-                },
-                label = { Text("Number from 1 to 720") },
-                supportingText = { if (error != null) Text(error!!, modifier = Modifier.testTag("ask_error")) },
-                isError = error != null,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("ask_number"),
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = {
-                    val number = numberText.toIntOrNull()
-                    val found = number?.let(AskBaba::answer)
-                    if (found == null) {
-                        error = "Enter a number from 1 to 720."
-                        answerNumber = 0
-                    } else {
+            Column(Modifier.fillMaxWidth().keepVisibleAboveKeyboard()) {
+                OutlinedTextField(
+                    value = numberText,
+                    onValueChange = { raw ->
+                        numberText = raw.filter { it.isDigit() }.take(3)
                         error = null
-                        answerNumber = found.number
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .testTag("ask_button"),
-            ) {
-                Text("Ask Baba")
+                    },
+                    label = { Text("Number from 1 to 720") },
+                    supportingText = { if (error != null) Text(error!!, modifier = Modifier.testTag("ask_error")) },
+                    isError = error != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("ask_number"),
+                )
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = {
+                        val number = numberText.toIntOrNull()
+                        val found = number?.let(AskBaba::answer)
+                        if (found == null) {
+                            error = "Enter a number from 1 to 720."
+                            answerNumber = 0
+                        } else {
+                            error = null
+                            answerNumber = found.number
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .testTag("ask_button"),
+                ) {
+                    Text("Ask Baba")
+                }
             }
             if (answer != null) {
                 Spacer(Modifier.height(20.dp))
                 AnswerCard(answer, accent = temple.saffron)
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(48.dp))
         }
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Modifier.keepVisibleAboveKeyboard(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    var focused by remember { mutableStateOf(false) }
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(imeBottom, focused) {
+        if (focused && imeBottom > 0) requester.bringIntoView()
+    }
+    return this
+        .bringIntoViewRequester(requester)
+        .onFocusEvent { focused = it.isFocused || it.hasFocus }
 }
 
 @Composable

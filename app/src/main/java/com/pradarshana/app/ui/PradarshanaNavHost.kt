@@ -20,6 +20,8 @@ import com.pradarshana.app.ui.history.SessionDetailRoute
 import com.pradarshana.app.ui.home.HomeRoute
 import com.pradarshana.app.ui.settings.SettingsRoute
 import com.pradarshana.app.ui.start.StartRoute
+import com.pradarshana.app.ui.stotra.StotraListRoute
+import com.pradarshana.app.ui.stotra.StotraReaderRoute
 import com.pradarshana.core.data.SessionRepository
 
 object Routes {
@@ -31,10 +33,13 @@ object Routes {
     const val DETAIL = "history/{id}"
     const val SETTINGS = "settings"
     const val ASK = "ask"
+    const val STOTRAS = "stotras"
+    const val STOTRA = "stotras/{id}"
 
     fun counter(id: String) = "counter/$id"
     fun completion(id: String) = "completion/$id"
     fun detail(id: String) = "history/$id"
+    fun stotra(id: String) = "stotras/$id"
 }
 
 @Composable
@@ -61,6 +66,7 @@ fun PradarshanaNavHost(
                 onHistory = { navController.navigate(Routes.HISTORY) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
                 onAskBaba = { navController.navigate(Routes.ASK) },
+                onStotras = { navController.navigate(Routes.STOTRAS) },
             )
         }
         composable(Routes.START) {
@@ -105,6 +111,18 @@ fun PradarshanaNavHost(
         }
         composable(Routes.ASK) {
             AskBabaRoute(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.STOTRAS) {
+            StotraListRoute(
+                onBack = { navController.popBackStack() },
+                onOpen = { navController.navigate(Routes.stotra(it.file)) },
+            )
+        }
+        composable(Routes.STOTRA, arguments = idArg) { entry ->
+            StotraReaderRoute(
+                file = entry.arguments?.getString("id").orEmpty(),
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.HISTORY) {
             HistoryRoute(

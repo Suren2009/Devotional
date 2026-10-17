@@ -34,8 +34,9 @@ object Geo {
 
 sealed interface ReturnVisit {
     data object Ignored : ReturnVisit
+    data object WaitingForStart : ReturnVisit
     data class AnchorChosen(val latitude: Double, val longitude: Double) : ReturnVisit
-    data object Watching : ReturnVisit
+    data class Watching(val distanceMeters: Int, val leftStart: Boolean) : ReturnVisit
     data object Counted : ReturnVisit
 }
 
@@ -65,20 +66,20 @@ class ReturnToPointTracker(
     }
 
     fun onFix(latitude: Double, longitude: Double, accuracyMeters: Float, timeMillis: Long): ReturnVisit {
-        if (!accuracyMeters.isFinite() || (accuracyMeters > 0f && accuracyMeters > MAX_ACCURACY_METERS)) {
-            return ReturnVisit.Ignored
-        }
+        if (!accuracyMeters.isFinite()) return ReturnVisit.Ignored
         val anchorLat = anchorLatitude
         val anchorLng = anchorLongitude
         if (anchorLat == null || anchorLng == null) {
+            if (!usable(accuracyMeters, ANCHOR_ACCURACY_METERS)) return ReturnVisit.WaitingForStart
             anchorLatitude = latitude
             anchorLongitude = longitude
             return ReturnVisit.AnchorChosen(latitude, longitude)
         }
-        val distance = Geo.metersBetween(anchorLat, anchorLng, latitude, longitude)
+        if (!usable(accuracyMeters, TRACK_ACCURACY_METERS)) return ReturnVisit.Ignored
+        val distance = Geo.metersBetween(anchorLat, anchorLng, latitude, longitude).toInt()
         if (!hasLeftStart) {
             if (distance >= awayMeters) hasLeftStart = true
-            return ReturnVisit.Watching
+            return ReturnVisit.Watching(distance, hasLeftStart)
         }
         val previousCount = lastCountedAtMillis
         val gapElapsed = previousCount == null || timeMillis - previousCount >= MIN_GAP_MILLIS
@@ -87,11 +88,18 @@ class ReturnToPointTracker(
             lastCountedAtMillis = timeMillis
             return ReturnVisit.Counted
         }
-        return ReturnVisit.Watching
+        return ReturnVisit.Watching(distance, hasLeftStart)
     }
 
+    private fun usable(accuracyMeters: Float, limit: Float): Boolean =
+        accuracyMeters <= 0f || accuracyMeters <= limit
+
     companion object {
-        const val MAX_ACCURACY_METERS = 25f
+        /** A clear reading is required before the starting place is saved. */
+        const val ANCHOR_ACCURACY_METERS = 30f
+
+        /** Later readings can be a little less precise and still follow the walk. */
+        const val TRACK_ACCURACY_METERS = 55f
         const val MIN_GAP_MILLIS = 20_000L
     }
 }

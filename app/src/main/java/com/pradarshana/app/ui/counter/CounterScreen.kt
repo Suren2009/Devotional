@@ -68,6 +68,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.count.AutoCountHost
+import com.pradarshana.app.count.AutoCountService
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.CompletionVibration
 import com.pradarshana.core.data.PradarshanaContainerOwner
@@ -151,6 +152,7 @@ fun CounterScreen(
     autoCount: Boolean = false,
 ) {
     val automatic = autoCount && session.kind == SessionKind.PRADARSHANA
+    val autoStatus by AutoCountService.progress.collectAsStateWithLifecycle()
     KeepScreenOn(automatic || session.status == SessionStatus.ACTIVE)
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
     var blackout by rememberSaveable { mutableStateOf(automatic) }
@@ -189,6 +191,7 @@ fun CounterScreen(
             paused = paused,
             remaining = session.remainingCount,
             countLabel = if (automatic) session.completedCount.toString() else null,
+            statusText = if (automatic) autoStatus else null,
             onPlus = if (automatic) ({}) else ::onPlus,
             onWake = ::wake,
         )
@@ -273,6 +276,14 @@ fun CounterScreen(
 
             if (automatic) {
                 RoundCountButton(session.completedCount)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    autoStatus,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("auto_count_status"),
+                )
             } else {
                 Button(
                     onClick = ::onPlus,
@@ -353,6 +364,7 @@ private fun BlackCountingScreen(
     onPlus: () -> Unit,
     onWake: () -> Unit,
     countLabel: String? = null,
+    statusText: String? = null,
 ) {
     val view = LocalView.current
     DisposableEffect(view) {
@@ -394,7 +406,18 @@ private fun BlackCountingScreen(
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
             }
         } else {
-            RoundCountButton(countLabel.toIntOrNull() ?: 0)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 28.dp)) {
+                RoundCountButton(countLabel.toIntOrNull() ?: 0)
+                if (!statusText.isNullOrBlank()) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        statusText,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("auto_count_status"),
+                    )
+                }
+            }
         }
     }
 }

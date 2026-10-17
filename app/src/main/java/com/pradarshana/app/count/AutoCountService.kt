@@ -36,6 +36,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
@@ -59,11 +62,23 @@ class AutoCountService : Service() {
             val active = tracker ?: return
             val time = location.time.takeIf { it > 0L } ?: System.currentTimeMillis()
             when (val visit = active.onFix(location.latitude, location.longitude, location.accuracy, time)) {
-                is ReturnVisit.AnchorChosen -> scope.launch {
-                    repository.rememberStartLocation(sessionId, visit.latitude, visit.longitude)
+                is ReturnVisit.AnchorChosen -> {
+                    progress("At the start. Walk away, then come back.")
+                    scope.launch { repository.rememberStartLocation(sessionId, visit.latitude, visit.longitude) }
                 }
-                ReturnVisit.Counted -> scope.launch { countRound(sessionId) }
-                ReturnVisit.Ignored, ReturnVisit.Watching -> Unit
+                ReturnVisit.WaitingForStart -> progress("Stand at the starting place")
+                is ReturnVisit.Watching -> progress(
+                    if (visit.leftStart) {
+                        "Come back to the start. ${visit.distanceMeters} m away."
+                    } else {
+                        "${visit.distanceMeters} m from the start. Walk farther away."
+                    },
+                )
+                ReturnVisit.Counted -> {
+                    progress("Round counted. Walk away again.")
+                    scope.launch { countRound(sessionId) }
+                }
+                ReturnVisit.Ignored -> Unit
             }
         }
     }
@@ -134,11 +149,10 @@ class AutoCountService : Service() {
             return current
         }
         trackedSessionId = session.id
+        progress("Stand at the starting place")
         return ReturnToPointTracker(
             awayMeters = awayMeters,
             returnMeters = returnMeters,
-            anchorLatitude = session.latitude,
-            anchorLongitude = session.longitude,
         ).also { tracker = it }
     }
 
@@ -155,7 +169,7 @@ class AutoCountService : Service() {
         if (listening || !hasLocationPermission()) return
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, UPDATE_INTERVAL_MILLIS)
             .setMinUpdateIntervalMillis(1_000L)
-            .setMinUpdateDistanceMeters(3f)
+            .setMinUpdateDistanceMeters(0f)
             .build()
         client.requestLocationUpdates(request, callback, Looper.getMainLooper())
         listening = true
@@ -215,6 +229,13 @@ class AutoCountService : Service() {
         private const val CHANNEL_ID = "pradarshana_auto_count"
         private const val NOTIFICATION_ID = 42
         private const val UPDATE_INTERVAL_MILLIS = 2_000L
+
+        private val _progress = MutableStateFlow("Stand at the starting place")
+        val progress: StateFlow<String> = _progress.asStateFlow()
+
+        fun progress(message: String) {
+            _progress.value = message
+        }
 
         fun start(context: Context) {
             val intent = Intent(context.applicationContext, AutoCountService::class.java)

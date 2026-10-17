@@ -27,6 +27,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   button. That button does not add a round. Double-tap elsewhere to reach Pause and End.
   Chanting still uses **+**. The watch is unchanged.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
+- **Stotras** on the phone: Vishnu Sahasranama, Lalitha Sahasranama, Govinda Namalu, Anjaneya Dandakam, Hanuman Chalisa and Lakshmi Ashtottaram. Each page has Telugu and English. Telugu is used until English is chosen, and that choice is kept.
 - **Ask Baba** on the phone. Think of one question, enter a number from 1 to 720, and read original guidance in English and Telugu. A Sai Baba picture is chosen from five, with Faith and Preserve moving beside it.
 - History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, total time and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.

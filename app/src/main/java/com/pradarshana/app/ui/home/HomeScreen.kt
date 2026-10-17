@@ -64,6 +64,7 @@ fun HomeRoute(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onAskBaba: () -> Unit,
+    onStotras: () -> Unit,
 ) {
     val vm = appViewModel { HomeViewModel(it.repository) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
@@ -75,6 +76,7 @@ fun HomeRoute(
         onHistory = onHistory,
         onSettings = onSettings,
         onAskBaba = onAskBaba,
+        onStotras = onStotras,
     )
 }
 
@@ -86,6 +88,7 @@ fun HomeScreen(
     onHistory: () -> Unit,
     onSettings: () -> Unit = {},
     onAskBaba: () -> Unit = {},
+    onStotras: () -> Unit = {},
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -140,6 +143,16 @@ fun HomeScreen(
                 Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text("Pradarshana History", style = MaterialTheme.typography.labelLarge)
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onStotras,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .testTag("stotras_button"),
+            ) {
+                Text("Stotras", style = MaterialTheme.typography.labelLarge)
             }
             Spacer(Modifier.height(12.dp))
             OutlinedButton(

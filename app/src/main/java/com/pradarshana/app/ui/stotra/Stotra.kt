@@ -18,12 +18,31 @@ class StotraLanguageStore(context: Context) {
         _language.value = language
     }
 
+    fun scrollOffset(stotra: StotraId, language: StotraLanguage): Int =
+        prefs.getInt(scrollKey(stotra, language), 0).coerceAtLeast(0)
+
+    fun saveScroll(stotra: StotraId, language: StotraLanguage, offset: Int) {
+        prefs.edit().putInt(scrollKey(stotra, language), offset.coerceAtLeast(0)).apply()
+    }
+
+    fun listScroll(): Int = prefs.getInt(LIST_SCROLL, 0).coerceAtLeast(0)
+
+    fun saveListScroll(offset: Int) {
+        prefs.edit().putInt(LIST_SCROLL, offset.coerceAtLeast(0)).apply()
+    }
+
     private fun read(): StotraLanguage =
         if (prefs.getString(KEY, TELUGU) == ENGLISH) StotraLanguage.ENGLISH else StotraLanguage.TELUGU
+
+    private fun scrollKey(stotra: StotraId, language: StotraLanguage): String {
+        val suffix = if (language == StotraLanguage.ENGLISH) ENGLISH else TELUGU
+        return "stotra_scroll_${stotra.file}_$suffix"
+    }
 
     companion object {
         private const val PREFS = "pradarshana_settings"
         const val KEY = "stotra_language"
+        private const val LIST_SCROLL = "stotras_list_scroll"
         private const val TELUGU = "te"
         private const val ENGLISH = "en"
     }
@@ -40,6 +59,7 @@ enum class StotraId(
     ANJANEYA("anjaneya", "ఆంజనేయ దండకం", "Anjaneya Dandakam"),
     HANUMAN("hanuman", "హనుమాన్ చాలీసా", "Hanuman Chalisa"),
     LAKSHMI("lakshmi", "లక్ష్మీ అష్టోత్తరం", "Lakshmi Ashtottaram"),
+    MAHALAKSHMI("mahalakshmi", "మహా లక్ష్మీ అష్టకం", "Maha Lakshmi Ashtakam"),
     ;
 
     fun title(language: StotraLanguage): String = if (language == StotraLanguage.TELUGU) titleTe else titleEn

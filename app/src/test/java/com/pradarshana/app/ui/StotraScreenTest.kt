@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -18,6 +19,7 @@ import com.pradarshana.app.ui.stotra.StotraReaderScreen
 import com.pradarshana.app.ui.stotra.loadStotra
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,6 +45,14 @@ class StotraScreenTest {
         store.set(StotraLanguage.ENGLISH)
         assertEquals(StotraLanguage.ENGLISH, StotraLanguageStore(context).language.value)
         store.set(StotraLanguage.TELUGU)
+        store.saveScroll(StotraId.MAHALAKSHMI, StotraLanguage.TELUGU, 240)
+        store.saveScroll(StotraId.MAHALAKSHMI, StotraLanguage.ENGLISH, 80)
+        val again = StotraLanguageStore(context)
+        assertEquals(240, again.scrollOffset(StotraId.MAHALAKSHMI, StotraLanguage.TELUGU))
+        assertEquals(80, again.scrollOffset(StotraId.MAHALAKSHMI, StotraLanguage.ENGLISH))
+        assertEquals(0, again.scrollOffset(StotraId.VISHNU, StotraLanguage.TELUGU))
+        assertTrue(loadStotra(context, StotraId.MAHALAKSHMI, StotraLanguage.TELUGU).contains("నమస్తేస్తు మహామాయే"))
+        assertTrue(loadStotra(context, StotraId.MAHALAKSHMI, StotraLanguage.ENGLISH).contains("namastestu mahaamaaye"))
     }
 
     @Test
@@ -77,6 +87,7 @@ class StotraScreenTest {
         compose.onNodeWithText("ఆంజనేయ దండకం").assertExists()
         compose.onNodeWithText("హనుమాన్ చాలీసా").assertExists()
         compose.onNodeWithText("లక్ష్మీ అష్టోత్తరం").assertExists()
+        compose.onNodeWithText("మహా లక్ష్మీ అష్టకం").assertExists()
         compose.onNodeWithTag("stotra_vishnu").performClick()
         assertEquals(StotraId.VISHNU, opened)
         compose.onNodeWithTag("stotra_lang_te").assertExists()
@@ -84,5 +95,30 @@ class StotraScreenTest {
         compose.onNodeWithTag("stotra_lang_en").performClick()
         assertEquals(StotraLanguage.ENGLISH, language)
         compose.onNodeWithText("vishvam vishnurvashatkaaro", substring = true).assertExists()
+    }
+
+    @Test
+    fun readerReturnsToTheStartOfThePage() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        var saved by mutableStateOf(-1)
+        compose.setContent {
+            PradarshanaTheme {
+                StotraReaderScreen(
+                    stotra = StotraId.VISHNU,
+                    language = StotraLanguage.TELUGU,
+                    body = loadStotra(context, StotraId.VISHNU, StotraLanguage.TELUGU),
+                    onLanguage = {},
+                    onBack = {},
+                    initialScroll = 2_000,
+                    onScroll = { _, _, offset -> saved = offset },
+                )
+            }
+        }
+        compose.onNodeWithTag("stotra_to_start").assertExists()
+        compose.onNodeWithTag("stotra_body").assertExists()
+        compose.onNodeWithTag("stotra_to_start").performClick()
+        compose.waitUntil(timeoutMillis = 5_000) {
+            saved == 0 && compose.onAllNodesWithTag("stotra_to_start").fetchSemanticsNodes().isEmpty()
+        }
     }
 }

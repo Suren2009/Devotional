@@ -1,19 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A clockwise path around a central shrine: the act of Pradakshina. -->
+<!-- Namaskar: palms joined, the anjali mudra. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:pathData="M54,32 A22,22 0 1,1 32,54"
-        android:strokeWidth="5"
-        android:strokeColor="#FFF8EC"
-        android:strokeLineCap="round" />
+        android:fillColor="#FFE4B8"
+        android:pathData="M30,72 L30,37.7 A5.7,5.7 0 0 1 41.4,37.7 L41.4,72 Z" />
+    <path
+        android:fillColor="#FFF3DC"
+        android:pathData="M42.4,74 L42.4,27.7 A5.7,5.7 0 0 1 53.8,27.7 L53.8,74 Z" />
     <path
         android:fillColor="#FFF8EC"
-        android:pathData="M25.5,57 L38.5,57 L32,45 Z" />
+        android:pathData="M54.2,74 L54.2,27.7 A5.7,5.7 0 0 1 65.6,27.7 L65.6,74 Z" />
+    <path
+        android:fillColor="#FFE8C2"
+        android:pathData="M66.6,72 L66.6,37.7 A5.7,5.7 0 0 1 78,37.7 L78,72 Z" />
+    <group
+        android:pivotX="42"
+        android:pivotY="74"
+        android:rotation="18">
+        <path
+            android:fillColor="#F6D27A"
+            android:pathData="M30,63.5 A7.5,7.5 0 0 1 45,63.5 L45,74.5 A7.5,7.5 0 0 1 30,74.5 Z" />
+    </group>
+    <group
+        android:pivotX="66"
+        android:pivotY="74"
+        android:rotation="-18">
+        <path
+            android:fillColor="#F0C56A"
+            android:pathData="M63,63.5 A7.5,7.5 0 0 1 78,63.5 L78,74.5 A7.5,7.5 0 0 1 63,74.5 Z" />
+    </group>
+    <path
+        android:fillColor="#7A2C12"
+        android:pathData="M41,67 H67 L64.5,83 H43.5 Z" />
     <path
         android:fillColor="#F3D77A"
-        android:pathData="M47,54 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+        android:pathData="M41,67 H67 V69.2 H41 Z" />
 </vector>

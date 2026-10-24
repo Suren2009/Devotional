@@ -3,15 +3,14 @@ package com.pradarshana.app.ui.stotra
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -19,7 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -337,6 +337,7 @@ private fun SavedStotraReaderScreen(
 ) {
     val scroll = rememberRestoredScroll(initialScroll, onScroll)
     val scope = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -358,14 +359,6 @@ private fun SavedStotraReaderScreen(
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(Modifier.height(8.dp))
-            StotraReaderTools(
-                body = body,
-                scroll = scroll,
-                bookmark = bookmark,
-                onBookmark = onBookmark,
-                onDelete = onDelete,
-                savedOnThisPhone = savedOnThisPhone,
-            )
             Spacer(Modifier.height(12.dp))
             Box(
                 Modifier
@@ -391,6 +384,16 @@ private fun SavedStotraReaderScreen(
                 }
             }
         }
+    }
+    StotraReaderTools(
+        Modifier.align(Alignment.TopEnd),
+        body = body,
+        scroll = scroll,
+        bookmark = bookmark,
+        onBookmark = onBookmark,
+        onDelete = onDelete,
+        savedOnThisPhone = savedOnThisPhone,
+    )
     }
 }
 
@@ -506,6 +509,7 @@ fun StotraReaderScreen(
         rememberRestoredScroll(initialScroll) { offset -> onScroll(stotra, language, offset) }
     }
     val scope = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -545,14 +549,6 @@ fun StotraReaderScreen(
                     Text("English")
                 }
             }
-            StotraReaderTools(
-                body = body,
-                scroll = scroll,
-                bookmark = bookmark,
-                onBookmark = onBookmark,
-                onDelete = onDelete,
-                savedOnThisPhone = savedOnThisPhone,
-            )
             Spacer(Modifier.height(12.dp))
             Box(
                 Modifier
@@ -585,10 +581,21 @@ fun StotraReaderScreen(
             }
         }
     }
+    StotraReaderTools(
+        Modifier.align(Alignment.TopEnd),
+        body = body,
+        scroll = scroll,
+        bookmark = bookmark,
+        onBookmark = onBookmark,
+        onDelete = onDelete,
+        savedOnThisPhone = savedOnThisPhone,
+    )
+    }
 }
 
 @Composable
 private fun StotraReaderTools(
+    modifier: Modifier,
     body: String,
     scroll: androidx.compose.foundation.ScrollState,
     bookmark: Int,
@@ -610,16 +617,13 @@ private fun StotraReaderTools(
         confirmDelete = false
     }
     val matches = stotraMatchStarts(body, query)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box {
+    Column(modifier.statusBarsPadding().then(if (searching) Modifier.fillMaxWidth() else Modifier)) {
+        Box(Modifier.align(Alignment.End).height(64.dp), contentAlignment = Alignment.Center) {
             IconButton(
                 onClick = { toolsOpen = true },
                 modifier = Modifier.testTag("stotra_tools"),
             ) {
-                Icon(
-                    Icons.Filled.Search,
-                    contentDescription = if (onDelete == null) "Search and bookmark" else "Search, bookmark, and delete",
-                )
+                Icon(Icons.Filled.MoreVert, contentDescription = "Menu")
             }
             DropdownMenu(expanded = toolsOpen, onDismissRequest = { toolsOpen = false }) {
                 DropdownMenuItem(
@@ -660,6 +664,45 @@ private fun StotraReaderTools(
                 }
             }
         }
+        if (searching) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 16.dp),
+            ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = {
+                        query = it
+                        hit = 0
+                    },
+                    label = { Text("Search this stotra") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("stotra_search"),
+                )
+                TextButton(
+                    onClick = {
+                        if (matches.isEmpty()) return@TextButton
+                        val index = matches[hit.coerceIn(0, matches.lastIndex)]
+                        hit = (hit + 1) % matches.size
+                        scope.launch {
+                            val max = scroll.maxValue
+                            if (max <= 0 || max == Int.MAX_VALUE) return@launch
+                            val place = (index.toFloat() / body.length.coerceAtLeast(1) * max).toInt()
+                            scroll.animateScrollTo(place.coerceIn(0, max))
+                        }
+                    },
+                    enabled = matches.isNotEmpty(),
+                    modifier = Modifier.testTag("stotra_search_next"),
+                ) {
+                    Text(if (matches.isEmpty()) "Find" else "Find ${hit.coerceAtMost(matches.lastIndex) + 1} of ${matches.size}")
+                }
+            }
+        }
     }
     if (confirmDelete && onDelete != null) {
         AlertDialog(
@@ -687,38 +730,6 @@ private fun StotraReaderTools(
                 TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
             },
         )
-    }
-    if (searching) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = {
-                query = it
-                hit = 0
-            },
-            label = { Text("Search this stotra") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("stotra_search"),
-        )
-        TextButton(
-            onClick = {
-                if (matches.isEmpty()) return@TextButton
-                val index = matches[hit.coerceIn(0, matches.lastIndex)]
-                hit = (hit + 1) % matches.size
-                scope.launch {
-                    val max = scroll.maxValue
-                    if (max <= 0 || max == Int.MAX_VALUE) return@launch
-                    val place = (index.toFloat() / body.length.coerceAtLeast(1) * max).toInt()
-                    scroll.animateScrollTo(place.coerceIn(0, max))
-                }
-            },
-            enabled = matches.isNotEmpty(),
-            modifier = Modifier.testTag("stotra_search_next"),
-        ) {
-            Text(if (matches.isEmpty()) "Find" else "Find ${hit.coerceAtMost(matches.lastIndex) + 1} of ${matches.size}")
-        }
     }
 }
 

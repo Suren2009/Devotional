@@ -1,6 +1,7 @@
 package com.pradarshana.app.ui.start
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -23,7 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -39,8 +42,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
@@ -64,10 +70,12 @@ import com.pradarshana.core.data.location.LocationCapture
 import com.pradarshana.core.data.location.hasLocationPermission
 import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.CounterRules
+import com.pradarshana.core.model.MalaSide
 import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.CounterRules.TargetValidation
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SavedTemple
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -89,6 +97,8 @@ class StartViewModel(
     var counts by mutableStateOf(CommonCounts.defaults)
         private set
     var kind by mutableStateOf(SessionKind.PRADARSHANA)
+        private set
+    var mantra by mutableStateOf("")
         private set
     private var titleEdited = false
     private var kindEdited = false
@@ -125,31 +135,56 @@ class StartViewModel(
         error = null
     }
 
-    fun start(captureLocation: Boolean = false) {
+    fun onMantraChange(value: String) {
+        mantra = value.take(SessionDetails.MAX_MANTRA_LENGTH)
+    }
+
+    fun start(captureLocation: Boolean = false, place: SavedTemple? = null) {
         if (starting) return
         when (val validation = CounterRules.validateTarget(input)) {
             is TargetValidation.Valid -> {
                 starting = true
+                val chosenMantra = mantra
                 viewModelScope.launch {
-                    val fix = if (captureLocation) runCatching { locationCapture.capture() }.getOrNull() else null
-                    when (val result = repository.startSession(validation.target, title, fix?.latitude, fix?.longitude, kind)) {
+                    val fix = if (place != null) {
+                        null
+                    } else if (captureLocation) {
+                        runCatching { locationCapture.capture() }.getOrNull()
+                    } else {
+                        null
+                    }
+                    val latitude = place?.latitude ?: fix?.latitude
+                    val longitude = place?.longitude ?: fix?.longitude
+                    when (
+                        val result = repository.startSession(
+                            validation.target,
+                            title,
+                            latitude,
+                            longitude,
+                            kind,
+                            chosenMantra,
+                        )
+                    ) {
                         is StartResult.Started -> _started.send(result.sessionId)
-                        is StartResult.Invalid -> error = messageFor(result.reason)
+                        is StartResult.Invalid -> error = messageFor(result.reason, kind)
                     }
                     starting = false
                 }
             }
-            else -> error = messageFor(validation)
+            else -> error = messageFor(validation, kind)
         }
     }
 
     companion object {
-        fun messageFor(validation: TargetValidation): String? = when (validation) {
-            is TargetValidation.Valid -> null
-            TargetValidation.Empty -> "Please enter the number of rounds."
-            TargetValidation.NotPositive -> "The number of rounds must be greater than zero."
-            TargetValidation.TooLarge -> "Please enter at most ${CounterRules.MAX_TARGET} rounds."
-            TargetValidation.NotANumber -> "Please enter a whole number."
+        fun messageFor(validation: TargetValidation, kind: SessionKind = SessionKind.PRADARSHANA): String? {
+            val counted = if (kind == SessionKind.CHANTING) "times" else "rounds"
+            return when (validation) {
+                is TargetValidation.Valid -> null
+                TargetValidation.Empty -> "Please enter the number of $counted."
+                TargetValidation.NotPositive -> "The number of $counted must be greater than zero."
+                TargetValidation.TooLarge -> "Please enter at most ${CounterRules.MAX_TARGET} $counted."
+                TargetValidation.NotANumber -> "Please enter a whole number."
+            }
         }
     }
 }
@@ -163,6 +198,14 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
     val savedAutomatic = if (feedback == null) false else SavedAutomaticCount(feedback)
     var chosenAutomatic by remember { mutableStateOf<Boolean?>(null) }
     val automatic = chosenAutomatic ?: savedAutomatic
+    val savedMala = if (feedback == null) false else SavedMalaDrag(feedback)
+    val savedSide = if (feedback == null) MalaSide.RIGHT else SavedMalaSide(feedback)
+    var chosenMala by remember { mutableStateOf<Boolean?>(null) }
+    var chosenSide by remember { mutableStateOf<MalaSide?>(null) }
+    val malaDrag = chosenMala ?: savedMala
+    val malaSide = chosenSide ?: savedSide
+    val temples = if (feedback == null) emptyList() else SavedTemples(feedback)
+    var chosenTempleId by remember { mutableStateOf<String?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.start(granted || context.hasLocationPermission())
     }
@@ -179,9 +222,28 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
         onInputChange = vm::onInputChange,
         automatic = automatic,
         onAutomaticChange = { chosenAutomatic = it },
+        malaDrag = malaDrag,
+        onMalaDragChange = { chosenMala = it },
+        malaSide = malaSide,
+        onMalaSideChange = { chosenSide = it },
+        mantra = vm.mantra,
+        onMantraChange = vm::onMantraChange,
+        temples = temples,
+        chosenTempleId = chosenTempleId,
+        onTempleChange = { chosenTempleId = it },
         onStart = {
             if (vm.kind == SessionKind.PRADARSHANA) feedback?.setAutoCount(automatic)
-            if (context.hasLocationPermission()) vm.start(captureLocation = true)
+            if (vm.kind == SessionKind.CHANTING) {
+                feedback?.setMalaDrag(malaDrag)
+                feedback?.setMalaSide(malaSide)
+            }
+            val place = if (vm.kind == SessionKind.PRADARSHANA && automatic) {
+                temples.firstOrNull { it.id == chosenTempleId }
+            } else {
+                null
+            }
+            if (place != null) vm.start(captureLocation = false, place = place)
+            else if (context.hasLocationPermission()) vm.start(captureLocation = true)
             else permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         },
         onBack = onBack,
@@ -192,6 +254,24 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
 private fun SavedAutomaticCount(feedback: CountFeedbackPreferences): Boolean {
     val enabled by feedback.autoCount.collectAsStateWithLifecycle()
     return enabled
+}
+
+@Composable
+private fun SavedMalaDrag(feedback: CountFeedbackPreferences): Boolean {
+    val enabled by feedback.malaDrag.collectAsStateWithLifecycle()
+    return enabled
+}
+
+@Composable
+private fun SavedMalaSide(feedback: CountFeedbackPreferences): MalaSide {
+    val side by feedback.malaSide.collectAsStateWithLifecycle()
+    return side
+}
+
+@Composable
+private fun SavedTemples(feedback: CountFeedbackPreferences): List<SavedTemple> {
+    val temples by feedback.temples.collectAsStateWithLifecycle()
+    return temples
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -210,8 +290,19 @@ fun StartScreen(
     onKindChange: (SessionKind) -> Unit = {},
     automatic: Boolean = false,
     onAutomaticChange: (Boolean) -> Unit = {},
+    malaDrag: Boolean = false,
+    onMalaDragChange: (Boolean) -> Unit = {},
+    malaSide: MalaSide = MalaSide.RIGHT,
+    onMalaSideChange: (MalaSide) -> Unit = {},
+    mantra: String = "",
+    onMantraChange: (String) -> Unit = {},
+    temples: List<SavedTemple> = emptyList(),
+    chosenTempleId: String? = null,
+    onTempleChange: (String?) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
+    val density = LocalDensity.current
+    var countsHeight by remember { mutableStateOf(0.dp) }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
 
     Scaffold(
@@ -228,11 +319,12 @@ fun StartScreen(
             )
         },
     ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .imePadding()
+                .padding(bottom = countsHeight)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
@@ -275,12 +367,107 @@ fun StartScreen(
                         Text("Automatic")
                     }
                 }
+                if (automatic && temples.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Starting place", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SuggestionChip(
+                            onClick = { onTempleChange(null) },
+                            label = { Text("This walk's GPS") },
+                            modifier = Modifier.testTag("temple_gps"),
+                        )
+                        temples.forEach { temple ->
+                            SuggestionChip(
+                                onClick = { onTempleChange(temple.id) },
+                                label = { Text(temple.name) },
+                                modifier = Modifier.testTag("temple_${temple.id}"),
+                            )
+                        }
+                    }
+                    Text(
+                        if (chosenTempleId == null) {
+                            "The phone saves the place where this walk begins."
+                        } else {
+                            "Rounds are counted when you return to ${temples.firstOrNull { it.id == chosenTempleId }?.name ?: "the saved temple"}."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     if (automatic) {
                         "A round is counted when you return to the start. The screen stays on and shows the count."
                     } else {
                         "Tap + for each round. This is the usual counting screen."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (kind == SessionKind.CHANTING) {
+                Spacer(Modifier.height(16.dp))
+                Text("Count each name", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !malaDrag,
+                        onClick = { onMalaDragChange(false) },
+                        shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        modifier = Modifier.testTag("mala_mode_plus"),
+                    ) {
+                        Text("Plus")
+                    }
+                    SegmentedButton(
+                        selected = malaDrag,
+                        onClick = { onMalaDragChange(true) },
+                        shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        modifier = Modifier.testTag("mala_mode_drag"),
+                    ) {
+                        Text("Drag down")
+                    }
+                }
+                if (malaDrag) {
+                    Spacer(Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = malaSide == MalaSide.LEFT,
+                            onClick = { onMalaSideChange(MalaSide.LEFT) },
+                            shape = SegmentedButtonDefaults.itemShape(0, 2),
+                            modifier = Modifier.testTag("mala_side_left"),
+                        ) {
+                            Text("Left")
+                        }
+                        SegmentedButton(
+                            selected = malaSide == MalaSide.RIGHT,
+                            onClick = { onMalaSideChange(MalaSide.RIGHT) },
+                            shape = SegmentedButtonDefaults.itemShape(1, 2),
+                            modifier = Modifier.testTag("mala_side_right"),
+                        ) {
+                            Text("Right")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = mantra,
+                    onValueChange = onMantraChange,
+                    label = { Text("Mantra") },
+                    placeholder = { Text("Optional") },
+                    supportingText = { Text("Shown on the counting screen. Leave blank to hide it.") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("mantra_input"),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (!malaDrag) {
+                        "Tap + for each name. This is the usual counting screen."
+                    } else if (malaSide == MalaSide.LEFT) {
+                        "Drag down the strip on the left to count one name, then lift."
+                    } else {
+                        "Drag down the strip on the right to count one name, then lift."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -303,7 +490,9 @@ fun StartScreen(
             OutlinedTextField(
                 value = input,
                 onValueChange = onInputChange,
-                label = { Text("Target rounds") },
+                label = {
+                    Text(if (kind == SessionKind.CHANTING) "No. of times chanting" else "Target rounds")
+                },
                 placeholder = { Text("e.g. 108") },
                 singleLine = true,
                 isError = error != null,
@@ -316,19 +505,6 @@ fun StartScreen(
                     .focusRequester(focusRequester)
                     .testTag("target_input"),
             )
-            Spacer(Modifier.height(8.dp))
-            Text("Common counts", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                counts.forEach { preset ->
-                    SuggestionChip(
-                        onClick = { onInputChange(preset.toString()) },
-                        label = { Text(preset.toString()) },
-                        modifier = Modifier
-                            .semantics { contentDescription = "$preset rounds" }
-                            .testTag("count_$preset"),
-                    )
-                }
-            }
             if (ongoing != null) {
                 Spacer(Modifier.height(12.dp))
                 Text(
@@ -353,6 +529,31 @@ fun StartScreen(
             ) {
                 Text("Start", style = MaterialTheme.typography.labelLarge)
             }
+        }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
+                .onSizeChanged { countsHeight = with(density) { it.height.toDp() } },
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(4.dp))
+                Text("Common counts", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    counts.forEach { preset ->
+                        SuggestionChip(
+                            onClick = { onInputChange(preset.toString()) },
+                            label = { Text(preset.toString()) },
+                            modifier = Modifier
+                                .semantics { contentDescription = "$preset ${kind.unit}" }
+                                .testTag("count_$preset"),
+                        )
+                    }
+                }
+            }
+        }
         }
     }
 }

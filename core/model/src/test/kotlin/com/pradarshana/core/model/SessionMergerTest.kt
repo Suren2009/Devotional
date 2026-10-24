@@ -145,6 +145,35 @@ class SessionMergerTest {
     }
 
     @Test
+    fun `an undo survives a repeated snapshot and does not restore the count`() {
+        val counted = snapshot(mapOf(PHONE to 4))
+        val undone = counted.copy(deviceUndos = mapOf(PHONE to 1))
+        val once = SessionMerger.merge(counted, undone).merged
+        assertEquals(3, once.completedCount)
+        val again = SessionMerger.merge(once, undone).merged
+        assertEquals(3, again.completedCount)
+        val stale = SessionMerger.merge(again, counted).merged
+        assertEquals(3, stale.completedCount)
+        assertFalse(SessionMerger.merge(stale, undone).changed)
+    }
+
+    @Test
+    fun `a finished session stays finished when a late undo arrives`() {
+        val done = snapshot(
+            mapOf(PHONE to 10),
+            status = SessionStatus.COMPLETED,
+            statusAt = 20,
+            endTime = 20,
+            target = 10,
+        )
+        val late = snapshot(mapOf(PHONE to 10), statusAt = 19).copy(deviceUndos = mapOf(PHONE to 1))
+        val merged = SessionMerger.merge(done, late).merged
+        assertEquals(SessionStatus.COMPLETED, merged.status)
+        assertEquals(10, merged.completedCount)
+        assertEquals(1, merged.deviceUndos[PHONE])
+    }
+
+    @Test
     fun `malformed completed status below target is downgraded`() {
         val bogus = snapshot(mapOf(WATCH to 3), status = SessionStatus.COMPLETED, statusAt = 5, endTime = 5)
         val result = SessionMerger.merge(null, bogus)

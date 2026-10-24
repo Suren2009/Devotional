@@ -1,6 +1,8 @@
 package com.pradarshana.app
 
 import android.os.Bundle
+import android.view.KeyEvent
+import com.pradarshana.app.count.VolumeCount
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,4 +39,20 @@ class MainActivity : ComponentActivity() {
         // Pick up anything the watch counted while the phone app was in the background.
         container.syncManager.requestReconcile()
     }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (isVolumeKey(keyCode) && VolumeCount.handler != null) {
+            if (event.repeatCount == 0) VolumeCount.handler?.invoke()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (isVolumeKey(keyCode) && VolumeCount.handler != null) return true
+        return super.onKeyUp(keyCode, event)
+    }
+
+    private fun isVolumeKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
 }

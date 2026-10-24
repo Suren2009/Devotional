@@ -7,22 +7,76 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class StotraLanguage { TELUGU, ENGLISH }
 
+enum class StotraTextSize(val stored: String, val scale: Float) {
+    SMALL("small", 0.85f),
+    MEDIUM("medium", 1f),
+    LARGE("large", 1.25f),
+    ;
+
+    companion object {
+        fun fromStored(value: String?): StotraTextSize = entries.firstOrNull { it.stored == value } ?: MEDIUM
+    }
+}
+
+/** Character indexes of [query] inside [body]. Blank queries match nothing. */
+fun stotraMatchStarts(body: String, query: String): List<Int> {
+    val needle = query.trim()
+    if (needle.isEmpty()) return emptyList()
+    val haystack = body.lowercase()
+    val look = needle.lowercase()
+    val hits = mutableListOf<Int>()
+    var from = 0
+    while (from <= haystack.length - look.length) {
+        val found = haystack.indexOf(look, from)
+        if (found < 0) break
+        hits += found
+        from = found + look.length
+    }
+    return hits
+}
+
 /** The language chosen for stotras. Telugu is used until English is chosen. */
 class StotraLanguageStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val _language = MutableStateFlow(read())
     val language: StateFlow<StotraLanguage> = _language.asStateFlow()
+    private val _textSize = MutableStateFlow(StotraTextSize.fromStored(prefs.getString(KEY_TEXT_SIZE, null)))
+    val textSize: StateFlow<StotraTextSize> = _textSize.asStateFlow()
 
     fun set(language: StotraLanguage) {
         prefs.edit().putString(KEY, if (language == StotraLanguage.ENGLISH) ENGLISH else TELUGU).commit()
         _language.value = language
     }
 
-    fun scrollOffset(stotra: StotraId, language: StotraLanguage): Int =
-        prefs.getInt(scrollKey(stotra, language), 0).coerceAtLeast(0)
+    fun setTextSize(size: StotraTextSize) {
+        prefs.edit().putString(KEY_TEXT_SIZE, size.stored).commit()
+        _textSize.value = size
+    }
+
+    fun bookmark(stotra: StotraId, language: StotraLanguage): Int = bookmark(stotra.file, language)
+
+    fun bookmark(file: String, language: StotraLanguage): Int =
+        prefs.getInt(bookmarkKey(file, language), NO_BOOKMARK)
+
+    fun saveBookmark(stotra: StotraId, language: StotraLanguage, offset: Int) {
+        saveBookmark(stotra.file, language, offset)
+    }
+
+    fun saveBookmark(file: String, language: StotraLanguage, offset: Int) {
+        prefs.edit().putInt(bookmarkKey(file, language), offset.coerceAtLeast(0)).commit()
+    }
+
+    fun scrollOffset(stotra: StotraId, language: StotraLanguage): Int = scrollOffset(stotra.file, language)
+
+    fun scrollOffset(file: String, language: StotraLanguage): Int =
+        prefs.getInt(scrollKey(file, language), 0).coerceAtLeast(0)
 
     fun saveScroll(stotra: StotraId, language: StotraLanguage, offset: Int) {
-        prefs.edit().putInt(scrollKey(stotra, language), offset.coerceAtLeast(0)).apply()
+        saveScroll(stotra.file, language, offset)
+    }
+
+    fun saveScroll(file: String, language: StotraLanguage, offset: Int) {
+        prefs.edit().putInt(scrollKey(file, language), offset.coerceAtLeast(0)).apply()
     }
 
     fun listScroll(): Int = prefs.getInt(LIST_SCROLL, 0).coerceAtLeast(0)
@@ -34,14 +88,21 @@ class StotraLanguageStore(context: Context) {
     private fun read(): StotraLanguage =
         if (prefs.getString(KEY, TELUGU) == ENGLISH) StotraLanguage.ENGLISH else StotraLanguage.TELUGU
 
-    private fun scrollKey(stotra: StotraId, language: StotraLanguage): String {
+    private fun scrollKey(file: String, language: StotraLanguage): String {
         val suffix = if (language == StotraLanguage.ENGLISH) ENGLISH else TELUGU
-        return "stotra_scroll_${stotra.file}_$suffix"
+        return "stotra_scroll_${file}_$suffix"
+    }
+
+    private fun bookmarkKey(file: String, language: StotraLanguage): String {
+        val suffix = if (language == StotraLanguage.ENGLISH) ENGLISH else TELUGU
+        return "stotra_bookmark_${file}_$suffix"
     }
 
     companion object {
         private const val PREFS = "pradarshana_settings"
         const val KEY = "stotra_language"
+        const val KEY_TEXT_SIZE = "stotra_text_size"
+        const val NO_BOOKMARK = -1
         private const val LIST_SCROLL = "stotras_list_scroll"
         private const val TELUGU = "te"
         private const val ENGLISH = "en"

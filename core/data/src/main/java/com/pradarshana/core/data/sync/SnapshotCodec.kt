@@ -31,6 +31,9 @@ object SnapshotCodec {
     private const val KEY_LONGITUDE = "longitude"
     private const val KEY_KIND = "kind"
     private const val KEY_PAUSED = "paused_millis"
+    private const val KEY_UNDO_DEVICES = "undo_devices"
+    private const val KEY_UNDO_VALUES = "undo_values"
+    private const val KEY_MANTRA = "mantra"
 
     fun write(map: DataMap, snapshot: SessionSnapshot, sourceDeviceId: String) {
         map.putInt(KEY_SCHEMA, SCHEMA_VERSION)
@@ -60,6 +63,10 @@ object SnapshotCodec {
         }
         map.putString(KEY_KIND, snapshot.kind.name)
         map.putLong(KEY_PAUSED, snapshot.pausedMillis)
+        val undos = snapshot.deviceUndos.entries.sortedBy { it.key }
+        map.putStringArray(KEY_UNDO_DEVICES, undos.map { it.key }.toTypedArray())
+        map.putIntegerArrayList(KEY_UNDO_VALUES, ArrayList(undos.map { it.value }))
+        map.putString(KEY_MANTRA, snapshot.mantra)
     }
 
     /** Returns null for malformed or newer-schema payloads instead of throwing. */
@@ -68,6 +75,13 @@ object SnapshotCodec {
         val devices = map.getStringArray(KEY_COUNT_DEVICES) ?: return null
         val values = map.getIntegerArrayList(KEY_COUNT_VALUES) ?: return null
         if (devices.size != values.size) return null
+        val undoDevices = if (map.containsKey(KEY_UNDO_DEVICES)) map.getStringArray(KEY_UNDO_DEVICES) else null
+        val undoValues = if (map.containsKey(KEY_UNDO_VALUES)) map.getIntegerArrayList(KEY_UNDO_VALUES) else null
+        val deviceUndos = when {
+            undoDevices == null && undoValues == null -> emptyMap()
+            undoDevices == null || undoValues == null || undoDevices.size != undoValues.size -> return null
+            else -> undoDevices.zip(undoValues).toMap()
+        }
         val endTime = map.getLong(KEY_END, -1L).takeIf { it >= 0 }
         val (latitude, longitude) = if (map.getBoolean(KEY_HAS_LOCATION, false)) {
             SessionDetails.normalizeLocation(map.getDouble(KEY_LATITUDE), map.getDouble(KEY_LONGITUDE))
@@ -92,6 +106,12 @@ object SnapshotCodec {
                 longitude = longitude,
                 kind = SessionKind.fromStored(map.getString(KEY_KIND)),
                 pausedMillis = if (map.containsKey(KEY_PAUSED)) map.getLong(KEY_PAUSED) else 0L,
+                deviceUndos = deviceUndos,
+                mantra = if (map.containsKey(KEY_MANTRA)) {
+                    SessionDetails.normalizeMantra(map.getString(KEY_MANTRA) ?: "")
+                } else {
+                    ""
+                },
             ),
         )
     }.getOrNull()

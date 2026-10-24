@@ -9,14 +9,18 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.home.HomeScreen
+import com.pradarshana.app.ui.stotra.StotraEditorScreen
 import com.pradarshana.app.ui.stotra.StotraId
 import com.pradarshana.app.ui.stotra.StotraLanguage
 import com.pradarshana.app.ui.stotra.StotraLanguageStore
+import com.pradarshana.app.ui.stotra.StotraTextSize
 import com.pradarshana.app.ui.stotra.StotraListScreen
 import com.pradarshana.app.ui.stotra.StotraReaderScreen
 import com.pradarshana.app.ui.stotra.loadStotra
+import com.pradarshana.app.ui.stotra.stotraMatchStarts
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -120,5 +124,60 @@ class StotraScreenTest {
         compose.waitUntil(timeoutMillis = 5_000) {
             saved == 0 && compose.onAllNodesWithTag("stotra_to_start").fetchSemanticsNodes().isEmpty()
         }
+    }
+
+    @Test
+    fun searchFindsAVerseAndABookmarkIsRemembered() {
+        assertEquals(listOf(3), stotraMatchStarts("Om Namah Shivaya Om", "Namah"))
+        assertEquals(emptyList<Int>(), stotraMatchStarts("Om", "  "))
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE).edit().clear().commit()
+        val store = StotraLanguageStore(context)
+        assertEquals(StotraTextSize.MEDIUM, store.textSize.value)
+        store.setTextSize(StotraTextSize.LARGE)
+        assertEquals(StotraTextSize.LARGE, StotraLanguageStore(context).textSize.value)
+        assertEquals(StotraLanguageStore.NO_BOOKMARK, store.bookmark(StotraId.VISHNU, StotraLanguage.ENGLISH))
+        store.saveBookmark(StotraId.VISHNU, StotraLanguage.ENGLISH, 40)
+        assertEquals(40, StotraLanguageStore(context).bookmark(StotraId.VISHNU, StotraLanguage.ENGLISH))
+    }
+
+    @Test
+    fun deleteIsInTheStotraMenu() {
+        var removed by mutableStateOf(false)
+        compose.setContent {
+            PradarshanaTheme {
+                StotraReaderScreen(
+                    stotra = StotraId.VISHNU,
+                    language = StotraLanguage.TELUGU,
+                    body = "Om",
+                    onLanguage = {},
+                    onBack = {},
+                    onDelete = { removed = true },
+                    savedOnThisPhone = true,
+                )
+            }
+        }
+        compose.onNodeWithTag("delete_stotra_vishnu").assertDoesNotExist()
+        compose.onNodeWithTag("stotra_tools").performClick()
+        compose.onNodeWithTag("stotra_delete").performClick()
+        compose.onNodeWithText("This deletes the text you saved.").assertExists()
+        compose.onNodeWithTag("confirm_delete_stotra").performClick()
+        assertEquals(true, removed)
+    }
+
+    @Test
+    fun editorKeepsANameAndText() {
+        var saved by mutableStateOf<Pair<String, String>?>(null)
+        compose.setContent {
+            PradarshanaTheme {
+                StotraEditorScreen(onBack = {}, onSave = { title, text -> saved = title to text })
+            }
+        }
+        compose.onNodeWithTag("save_stotra").performClick()
+        compose.onNodeWithText("Enter a name and the stotra text.").assertExists()
+        compose.onNodeWithTag("stotra_title_input").performTextInput("Evening prayer")
+        compose.onNodeWithTag("stotra_body_input").performTextInput("Om namah")
+        compose.onNodeWithTag("save_stotra").performClick()
+        assertEquals("Evening prayer" to "Om namah", saved)
     }
 }

@@ -45,16 +45,34 @@ import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.count.AutoCountHost
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.Mandala
+import com.pradarshana.core.data.CountFeedbackPreferences
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
+import com.pradarshana.core.model.CountPeriods
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionStatus
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.time.ZoneId
 
 class HomeViewModel(repository: SessionRepository) : ViewModel() {
     val ongoing: StateFlow<PradarshanaSession?> = repository.observeOngoingSession()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _totals = MutableStateFlow(CountPeriods.Totals(0, 0, 0))
+    val totals: StateFlow<CountPeriods.Totals> = _totals
+
+    init {
+        viewModelScope.launch {
+            combine(repository.observeHistory(), repository.observeOngoingSession()) { _, _ -> }
+                .collect {
+                    _totals.value = repository.periodCounts(System.currentTimeMillis(), ZoneId.systemDefault())
+                }
+        }
+    }
 }
 
 @Composable
@@ -68,6 +86,10 @@ fun HomeRoute(
 ) {
     val vm = appViewModel { HomeViewModel(it.repository) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
+    val totals by vm.totals.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val feedback = (context.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
+    val showTotals = if (feedback == null) false else CollectedTotals(feedback)
     AutoCountHost(ongoing)
     HomeScreen(
         ongoing = ongoing,
@@ -77,7 +99,14 @@ fun HomeRoute(
         onSettings = onSettings,
         onAskBaba = onAskBaba,
         onStotras = onStotras,
+        totals = if (showTotals) totals else null,
     )
+}
+
+@Composable
+private fun CollectedTotals(feedback: CountFeedbackPreferences): Boolean {
+    val enabled by feedback.showTotals.collectAsStateWithLifecycle()
+    return enabled
 }
 
 @Composable
@@ -89,6 +118,7 @@ fun HomeScreen(
     onSettings: () -> Unit = {},
     onAskBaba: () -> Unit = {},
     onStotras: () -> Unit = {},
+    totals: CountPeriods.Totals? = null,
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -117,6 +147,11 @@ fun HomeScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(32.dp))
+
+            if (totals != null) {
+                TotalsCard(totals)
+                Spacer(Modifier.height(20.dp))
+            }
 
             if (ongoing != null) {
                 ResumeCard(ongoing, onResume = { onResume(ongoing.id) })
@@ -175,6 +210,25 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(24.dp))
         }
+        }
+    }
+}
+
+@Composable
+private fun TotalsCard(totals: CountPeriods.Totals) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("period_totals"),
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Text("Counted", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Today ${totals.today} · This week ${totals.week} · This month ${totals.month}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }

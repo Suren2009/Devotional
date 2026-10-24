@@ -16,6 +16,7 @@ import com.pradarshana.core.data.CountFeedbackPreferences
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.app.ui.theme.ThemeMode
 import com.pradarshana.app.ui.theme.ThemeStore
+import com.pradarshana.core.model.MalaSide
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -163,5 +164,81 @@ class SettingsScreenTest {
         assertTrue(stored.autoCount.value)
         assertEquals(40, stored.awayMeters.value)
         assertEquals(15, stored.returnMeters.value)
+    }
+
+    @Test
+    fun malaDragIsOffUntilTurnedOnAndTheSideIsRemembered() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE)
+            .edit()
+            .remove(CountFeedbackPreferences.KEY_MALA_DRAG)
+            .remove(CountFeedbackPreferences.KEY_MALA_SIDE)
+            .commit()
+        val prefs = CountFeedbackPreferences(context)
+        assertFalse(prefs.malaDrag.value)
+        assertEquals(MalaSide.RIGHT, prefs.malaSide.value)
+
+        var enabled by mutableStateOf(false)
+        var side by mutableStateOf(MalaSide.RIGHT)
+        compose.setContent {
+            PradarshanaTheme {
+                SettingsScreen(
+                    mode = ThemeMode.SYSTEM,
+                    onMode = {},
+                    onBack = {},
+                    malaDrag = enabled,
+                    onMalaDrag = { enabled = it },
+                    malaSide = side,
+                    onMalaSide = { side = it },
+                )
+            }
+        }
+        compose.onNodeWithTag("mala_side_left").assertDoesNotExist()
+        compose.onNodeWithTag("mala_drag").performScrollTo().performClick()
+        assertTrue(enabled)
+        compose.onNodeWithText("On. Drag down the strip to count one name. The start screen can also choose this.").assertExists()
+        compose.onNodeWithTag("mala_side_right").performScrollTo().assertExists()
+        compose.onNodeWithTag("mala_side_left").performScrollTo().performClick()
+        assertEquals(MalaSide.LEFT, side)
+        prefs.setMalaDrag(true)
+        prefs.setMalaSide(MalaSide.LEFT)
+        val stored = CountFeedbackPreferences(context)
+        assertTrue(stored.malaDrag.value)
+        assertEquals(MalaSide.LEFT, stored.malaSide.value)
+    }
+
+    @Test
+    fun extraCountingOptionsStayOffUntilTurnedOn() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE).edit().clear().commit()
+        val prefs = CountFeedbackPreferences(context)
+        assertFalse(prefs.undoLast.value)
+        assertFalse(prefs.volumeCount.value)
+        assertFalse(prefs.guruBell.value)
+        assertFalse(prefs.showTotals.value)
+        assertFalse(prefs.crownCount.value)
+        assertTrue(prefs.temples.value.isEmpty())
+        var undo by mutableStateOf(false)
+        compose.setContent {
+            PradarshanaTheme {
+                SettingsScreen(
+                    mode = ThemeMode.SYSTEM,
+                    onMode = {},
+                    onBack = {},
+                    undoLast = undo,
+                    onUndoLast = { undo = it },
+                )
+            }
+        }
+        compose.onNodeWithTag("undo_last_count").performScrollTo().performClick()
+        assertTrue(undo)
+        compose.onNodeWithTag("volume_count").performScrollTo().assertExists()
+        compose.onNodeWithTag("guru_bell").performScrollTo().assertExists()
+        compose.onNodeWithTag("show_totals").performScrollTo().assertExists()
+        compose.onNodeWithTag("export_history").performScrollTo().assertExists()
+        compose.onNodeWithTag("stotra_text_medium").performScrollTo().assertExists()
+        assertTrue(prefs.saveTemple("Kapaleeshwarar", 13.03386, 80.27000))
+        assertEquals("Kapaleeshwarar", prefs.temples.value.single().name)
+        assertFalse(prefs.saveTemple(" ", 1.0, 2.0))
     }
 }

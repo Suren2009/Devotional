@@ -43,7 +43,24 @@ object CounterRules {
     fun canIncrement(status: SessionStatus, target: Int, completed: Int): Boolean =
         status == SessionStatus.ACTIVE && completed < target
 
-    /** Total of per-device contributions, never negative and never above the target. */
-    fun mergedCount(target: Int, deviceCounts: Map<String, Int>): Int =
-        deviceCounts.values.sumOf { it.coerceAtLeast(0).toLong() }.coerceAtMost(target.toLong()).toInt()
+    /** The count that sits halfway, once the target is at least 2. */
+    fun isHalfway(target: Int, completed: Int): Boolean = target >= 2 && completed == target / 2
+
+    /**
+     * Total of per-device contributions, never negative and never above the target.
+     * Each device's undos are subtracted from that device only, so one device cannot erase another's counts.
+     */
+    fun mergedCount(
+        target: Int,
+        deviceCounts: Map<String, Int>,
+        deviceUndos: Map<String, Int> = emptyMap(),
+    ): Int {
+        val devices = deviceCounts.keys + deviceUndos.keys
+        val net = devices.sumOf { device ->
+            val counted = deviceCounts[device]?.coerceAtLeast(0) ?: 0
+            val undone = deviceUndos[device]?.coerceAtLeast(0) ?: 0
+            (counted - undone).coerceAtLeast(0).toLong()
+        }
+        return net.coerceAtMost(target.toLong()).toInt()
+    }
 }

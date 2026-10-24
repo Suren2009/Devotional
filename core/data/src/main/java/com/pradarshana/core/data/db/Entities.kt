@@ -35,6 +35,8 @@ data class SessionEntity(
     @ColumnInfo(name = "kind", defaultValue = "'PRADARSHANA'") val kind: SessionKind,
     /** Closed pauses only. The pause still running is measured from [statusUpdatedAt]. */
     @ColumnInfo(name = "paused_millis", defaultValue = "0") val pausedMillis: Long = 0,
+    /** Optional chant. Empty for a walk and for a chant that was not named. */
+    @ColumnInfo(name = "mantra", defaultValue = "''") val mantra: String = "",
 )
 
 /** One G-Counter entry: the number of rounds counted on [deviceId] for a session. */
@@ -54,6 +56,8 @@ data class DeviceCountEntity(
     @ColumnInfo(name = "session_id") val sessionId: String,
     @ColumnInfo(name = "device_id") val deviceId: String,
     val count: Int,
+    /** Counts this device took back. Grows only, and is merged by maximum like [count]. */
+    @ColumnInfo(name = "undos", defaultValue = "0") val undos: Int = 0,
 )
 
 /** Local log of every round counted on this device; [opId] is `sessionId:deviceId:sequence`. */

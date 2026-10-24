@@ -1,9 +1,12 @@
 package com.pradarshana.wear
 
 import android.app.Application
+import android.content.ComponentName
 import androidx.wear.tiles.TileService
+import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.pradarshana.core.data.PradarshanaContainer
 import com.pradarshana.core.data.PradarshanaContainerOwner
+import com.pradarshana.wear.complication.TodayComplicationService
 import com.pradarshana.wear.tile.PradarshanaTileService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +22,16 @@ class PradarshanaWearApp : Application(), PradarshanaContainerOwner {
         super.onCreate()
         appScope.launch {
             container.repository.observeOngoingSession().collect {
-                TileService.getUpdater(this@PradarshanaWearApp)
-                    .requestUpdate(PradarshanaTileService::class.java)
+                runCatching {
+                    TileService.getUpdater(this@PradarshanaWearApp)
+                        .requestUpdate(PradarshanaTileService::class.java)
+                }
+                runCatching {
+                    ComplicationDataSourceUpdateRequester.create(
+                        this@PradarshanaWearApp,
+                        ComponentName(this@PradarshanaWearApp, TodayComplicationService::class.java),
+                    ).requestUpdateAll()
+                }
             }
         }
     }

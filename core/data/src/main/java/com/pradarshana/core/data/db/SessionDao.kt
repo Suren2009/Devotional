@@ -1,11 +1,17 @@
 package com.pradarshana.core.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+
+data class CountedSession(
+    @ColumnInfo(name = "start_time") val startTime: Long,
+    @ColumnInfo(name = "completed_count") val completedCount: Int,
+)
 
 @Dao
 interface SessionDao {
@@ -36,6 +42,15 @@ interface SessionDao {
 
     @Query("SELECT * FROM sessions WHERE id = :id")
     suspend fun getSession(id: String): SessionEntity?
+
+    @Query("SELECT * FROM sessions")
+    suspend fun getAllSessions(): List<SessionEntity>
+
+    @Query("SELECT start_time, completed_count FROM sessions")
+    suspend fun countedSessions(): List<CountedSession>
+
+    @Query("SELECT id FROM deleted_sessions")
+    suspend fun deletedIds(): List<String>
 
     @Query("SELECT * FROM sessions WHERE status IN ('ACTIVE', 'PAUSED') ORDER BY start_time DESC, id DESC")
     suspend fun getOngoingSessions(): List<SessionEntity>

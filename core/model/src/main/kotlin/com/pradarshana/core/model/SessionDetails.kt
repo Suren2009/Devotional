@@ -3,12 +3,16 @@ package com.pradarshana.core.model
 /** Optional name and place recorded when a session starts. */
 object SessionDetails {
     const val MAX_TITLE_LENGTH = 60
+    const val MAX_MANTRA_LENGTH = 80
 
     /** Shown in history when the devotee did not type a title. */
     const val UNTITLED = "Untitled"
 
     fun normalizeTitle(raw: String): String =
         raw.trim().replace(Regex("\\s+"), " ").take(MAX_TITLE_LENGTH)
+
+    fun normalizeMantra(raw: String): String =
+        raw.trim().replace(Regex("\\s+"), " ").take(MAX_MANTRA_LENGTH)
 
     fun displayTitle(title: String): String = title.ifEmpty { UNTITLED }
 
@@ -29,6 +33,9 @@ object SessionDetails {
         b.isEmpty() -> a
         else -> minOf(a, b)
     }
+
+    /** Blank loses to a chosen mantra. Two different mantras resolve to the same value on every device. */
+    fun mergeMantra(a: String, b: String): String = mergeTitle(a, b)
 
     /** A missing fix loses to a recorded one. Two different fixes resolve deterministically. */
     fun mergeLocation(

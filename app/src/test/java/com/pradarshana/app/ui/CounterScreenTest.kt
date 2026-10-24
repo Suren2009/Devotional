@@ -1,6 +1,9 @@
 package com.pradarshana.app.ui
 
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.assertContentDescriptionEquals
@@ -379,6 +382,46 @@ class CounterScreenTest {
         compose.onNodeWithTag("battery_saver").assertDoesNotExist()
         compose.onNodeWithTag("increment_button").assertDoesNotExist()
         compose.onNodeWithTag("mala_strip").assertExists()
+    }
+
+    @Test
+    fun rudrakshaRestsBelowTheMiddleThenAboveIt() {
+        var count by mutableIntStateOf(10)
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = chanting(count),
+                    onIncrement = {},
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    batterySaverEnabled = false,
+                    malaDrag = true,
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Name 10 of 108").assertExists()
+        assertTrue(beadCenter() > stripCenter())
+
+        count = 58
+        compose.waitForIdle()
+        val strip = compose.onNodeWithTag("mala_strip").fetchSemanticsNode()
+        assertTrue(beadCenter() < strip.positionInRoot.y + strip.size.height * 0.2f)
+
+        count = 100
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Name 100 of 108").assertExists()
+        assertTrue(beadCenter() < stripCenter())
+    }
+
+    private fun beadCenter(): Float {
+        val node = compose.onNodeWithTag("mala_bead").fetchSemanticsNode()
+        return node.positionInRoot.y + node.size.height / 2f
+    }
+
+    private fun stripCenter(): Float {
+        val node = compose.onNodeWithTag("mala_strip").fetchSemanticsNode()
+        return node.positionInRoot.y + node.size.height / 2f
     }
 
     private fun chanting(count: Int = 0, status: SessionStatus = SessionStatus.ACTIVE) = PradarshanaSession(

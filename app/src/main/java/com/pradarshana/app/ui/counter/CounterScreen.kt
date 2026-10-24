@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -59,7 +58,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,6 +76,8 @@ import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
+import kotlin.math.sqrt
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -220,6 +223,8 @@ fun CounterScreen(
             enabled = session.canIncrement && !automatic,
             paused = paused,
             remaining = session.remainingCount,
+            completed = session.completedCount,
+            target = session.targetCount,
             countLabel = if (automatic) session.completedCount.toString() else null,
             statusText = if (automatic) autoStatus else null,
             onPlus = if (automatic) ({}) else ::onPlus,
@@ -375,6 +380,8 @@ fun CounterScreen(
         }
         if (mala) {
             MalaStrip(
+                completed = session.completedCount,
+                target = session.targetCount,
                 enabled = session.canIncrement,
                 onCount = ::onPlus,
                 onBlack = false,
@@ -417,6 +424,8 @@ private fun BlackCountingScreen(
     enabled: Boolean,
     paused: Boolean,
     remaining: Int,
+    completed: Int = 0,
+    target: Int = 1,
     onPlus: () -> Unit,
     onWake: () -> Unit,
     countLabel: String? = null,
@@ -456,6 +465,8 @@ private fun BlackCountingScreen(
     ) {
         if (mala) {
             MalaStrip(
+                completed = completed,
+                target = target,
                 enabled = enabled,
                 onCount = onPlus,
                 onBlack = true,
@@ -497,75 +508,127 @@ private fun BlackCountingScreen(
 
 @Composable
 private fun MalaStrip(
+    completed: Int,
+    target: Int,
     enabled: Boolean,
     onCount: () -> Unit,
     onBlack: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val thresholdPx = with(LocalDensity.current) { MalaDrag.MIN_DOWNWARD_DP.dp.toPx() }
-    var fraction by remember { mutableFloatStateOf(0.08f) }
-    val beadColor = if (onBlack) Color(0xFFE07B17) else MaterialTheme.colorScheme.primary
-    val trackColor = if (onBlack) Color.White.copy(alpha = 0.22f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { MalaDrag.MIN_DOWNWARD_DP.dp.toPx() }
+    val insetPx = with(density) { 18.dp.toPx() }
+    val home = MalaDrag.beadFraction(completed, target)
+    var dragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(home) }
+    val shown = if (dragging) dragFraction else home
+    val saffron = if (onBlack) Color(0xFFE07B17) else MaterialTheme.colorScheme.primary
+    val gold = Color(0xFFC9A227)
+    val pale = if (onBlack) Color.White.copy(alpha = 0.28f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val cord = if (onBlack) Color.White.copy(alpha = 0.45f) else gold
     BoxWithConstraints(
         modifier
             .width(80.dp)
             .fillMaxHeight()
             .testTag("mala_strip")
             .semantics { contentDescription = "Drag down to count one name" }
-            .pointerInput(enabled, thresholdPx) {
+            .pointerInput(enabled, thresholdPx, insetPx) {
                 if (!enabled) return@pointerInput
+                val span = (size.height - insetPx * 2f).coerceAtLeast(1f)
                 var downward = 0f
                 detectDragGestures(
                     onDragStart = { offset ->
                         downward = 0f
-                        fraction = (offset.y / size.height).coerceIn(0f, 1f)
+                        dragging = true
+                        dragFraction = ((offset.y - insetPx) / span).coerceIn(0f, 1f)
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
                         if (dragAmount.y > 0f) downward += dragAmount.y
-                        fraction = (fraction + dragAmount.y / size.height).coerceIn(0f, 1f)
+                        dragFraction = (dragFraction + dragAmount.y / span).coerceIn(0f, 1f)
                     },
                     onDragEnd = {
-                        if (MalaDrag.counts(downward, thresholdPx)) onCount()
-                        downward = 0f
-                        fraction = 0.08f
+                        val countThisDrag = MalaDrag.counts(downward, thresholdPx)
+                        dragging = false
+                        if (countThisDrag) onCount()
                     },
-                    onDragCancel = {
-                        downward = 0f
-                        fraction = 0.08f
-                    },
+                    onDragCancel = { dragging = false },
                 )
             },
     ) {
-        val bead = 40.dp
-        val travel = (maxHeight - bead).coerceAtLeast(0.dp)
-        Box(
-            Modifier
-                .align(Alignment.Center)
-                .width(18.dp)
-                .fillMaxHeight()
-                .padding(vertical = 16.dp)
-                .background(trackColor, RoundedCornerShape(12.dp)),
-        )
+        val bead = 34.dp
+        val inset = 18.dp
+        val span = (maxHeight - inset * 2).coerceAtLeast(0.dp)
         Canvas(Modifier.fillMaxSize()) {
-            val radius = 5.dp.toPx()
-            val gap = 22.dp.toPx()
-            var y = radius + 12.dp.toPx()
             val cx = size.width / 2f
-            while (y < size.height - radius) {
-                drawCircle(color = trackColor, radius = radius, center = Offset(cx, y))
-                y += gap
+            val top = 18.dp.toPx()
+            val travel = (size.height - top * 2f).coerceAtLeast(1f)
+            drawLine(cord, Offset(cx, top), Offset(cx, top + travel), strokeWidth = 3.dp.toPx())
+            val midY = top + travel * 0.5f
+            drawLine(cord, Offset(cx - 22.dp.toPx(), midY), Offset(cx - 12.dp.toPx(), midY), strokeWidth = 3.dp.toPx())
+            drawLine(cord, Offset(cx + 12.dp.toPx(), midY), Offset(cx + 22.dp.toPx(), midY), strokeWidth = 3.dp.toPx())
+            val slots = 16
+            repeat(slots) { index ->
+                val place = index / (slots - 1f)
+                if (abs(place - shown) < 0.045f) return@repeat
+                val visited = MalaDrag.beadVisited(place, completed, target)
+                rudraksha(
+                    center = Offset(cx, top + travel * place),
+                    rx = 8.dp.toPx(),
+                    ry = 11.dp.toPx(),
+                    body = if (visited) saffron else pale,
+                    groove = if (visited) gold else pale.copy(alpha = 0.9f),
+                )
             }
         }
         Box(
             Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = travel * fraction)
+                .offset(y = inset + span * shown - bead / 2)
                 .size(bead)
-                .background(beadColor, CircleShape)
-                .testTag("mala_bead"),
+                .testTag("mala_bead")
+                .semantics { contentDescription = "Name $completed of $target" },
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                rudraksha(
+                    center = Offset(size.width / 2f, size.height / 2f),
+                    rx = size.width / 2f - 2.dp.toPx(),
+                    ry = size.height / 2f - 2.dp.toPx(),
+                    body = saffron,
+                    groove = if (onBlack) Color(0xFF8C430C) else gold,
+                )
+                drawOval(
+                    color = gold,
+                    topLeft = Offset(1.dp.toPx(), 1.dp.toPx()),
+                    size = Size(size.width - 2.dp.toPx(), size.height - 2.dp.toPx()),
+                    style = Stroke(width = 2.dp.toPx()),
+                )
+            }
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.rudraksha(
+    center: Offset,
+    rx: Float,
+    ry: Float,
+    body: Color,
+    groove: Color,
+) {
+    drawOval(body, topLeft = Offset(center.x - rx, center.y - ry), size = Size(rx * 2f, ry * 2f))
+    for (t in floatArrayOf(-0.55f, -0.28f, 0f, 0.28f, 0.55f)) {
+        val half = ry * sqrt((1f - t * t).coerceAtLeast(0f))
+        val x = center.x + rx * t
+        drawLine(
+            groove,
+            Offset(x, center.y - half * 0.72f),
+            Offset(x, center.y + half * 0.72f),
+            strokeWidth = 1.5f,
         )
     }
+    val hole = (rx * 0.12f).coerceAtLeast(1.5f)
+    drawCircle(groove, hole, Offset(center.x, center.y - ry + hole))
+    drawCircle(groove, hole, Offset(center.x, center.y + ry - hole))
 }
 
 @Composable

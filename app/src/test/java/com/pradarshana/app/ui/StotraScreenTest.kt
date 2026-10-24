@@ -12,7 +12,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.home.HomeScreen
-import com.pradarshana.app.ui.stotra.CustomStotra
 import com.pradarshana.app.ui.stotra.StotraEditorScreen
 import com.pradarshana.app.ui.stotra.StotraId
 import com.pradarshana.app.ui.stotra.StotraLanguage
@@ -143,23 +142,27 @@ class StotraScreenTest {
     }
 
     @Test
-    fun aSavedStotraCanBeRemovedFromTheList() {
-        var removed by mutableStateOf<String?>(null)
+    fun deleteIsInTheStotraMenu() {
+        var removed by mutableStateOf(false)
         compose.setContent {
             PradarshanaTheme {
-                StotraListScreen(
+                StotraReaderScreen(
+                    stotra = StotraId.VISHNU,
+                    language = StotraLanguage.TELUGU,
+                    body = "Om",
+                    onLanguage = {},
                     onBack = {},
-                    onOpen = {},
-                    custom = listOf(CustomStotra("c1abc", "Evening prayer")),
-                    onDelete = { removed = it },
+                    onDelete = { removed = true },
+                    savedOnThisPhone = true,
                 )
             }
         }
-        compose.onNodeWithText("Evening prayer").assertExists()
-        compose.onNodeWithTag("delete_stotra_c1abc").performClick()
+        compose.onNodeWithTag("delete_stotra_vishnu").assertDoesNotExist()
+        compose.onNodeWithTag("stotra_tools").performClick()
+        compose.onNodeWithTag("stotra_delete").performClick()
         compose.onNodeWithText("This deletes the text you saved.").assertExists()
         compose.onNodeWithTag("confirm_delete_stotra").performClick()
-        assertEquals("c1abc", removed)
+        assertEquals(true, removed)
     }
 
     @Test

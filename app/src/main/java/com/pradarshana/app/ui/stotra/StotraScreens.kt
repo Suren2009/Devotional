@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -94,7 +93,6 @@ fun StotraListRoute(onBack: () -> Unit, onOpen: (String) -> Unit, onAdd: () -> U
         custom = custom,
         hidden = hidden,
         onAdd = onAdd,
-        onDelete = customStore::delete,
         onRestore = customStore::restoreBuiltIns,
     )
 }
@@ -110,12 +108,10 @@ fun StotraListScreen(
     hidden: Set<String> = emptySet(),
     onOpenCustom: (String) -> Unit = {},
     onAdd: () -> Unit = {},
-    onDelete: (String) -> Unit = {},
     onRestore: () -> Unit = {},
 ) {
     val scroll = rememberRestoredScroll(initialScroll, onScroll)
     val scope = rememberCoroutineScope()
-    var pendingDelete by remember { mutableStateOf<String?>(null) }
     val included = StotraId.entries.filter { it.file !in hidden }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -159,7 +155,6 @@ fun StotraListScreen(
                         subtitle = stotra.titleEn,
                         tag = "stotra_${stotra.file}",
                         onOpen = { onOpen(stotra) },
-                        onDelete = { pendingDelete = stotra.file },
                     )
                 }
                 custom.forEach { stotra ->
@@ -168,7 +163,6 @@ fun StotraListScreen(
                         subtitle = "Saved on this phone",
                         tag = "stotra_${stotra.id}",
                         onOpen = { onOpenCustom(stotra.id) },
-                        onDelete = { pendingDelete = stotra.id },
                     )
                 }
                 if (included.isEmpty() && custom.isEmpty()) {
@@ -191,34 +185,6 @@ fun StotraListScreen(
                 ) { scope.launch { scroll.animateScrollTo(0) } }
             }
         }
-        pendingDelete?.let { id ->
-            val builtIn = StotraId.fromFile(id) != null
-            AlertDialog(
-                onDismissRequest = { pendingDelete = null },
-                title = { Text("Remove this stotra?") },
-                text = {
-                    Text(
-                        if (builtIn) {
-                            "This removes it from the list. The included stotras can be shown again."
-                        } else {
-                            "This deletes the text you saved."
-                        },
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            pendingDelete = null
-                            onDelete(id)
-                        },
-                        modifier = Modifier.testTag("confirm_delete_stotra"),
-                    ) { Text("Remove") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
-                },
-            )
-        }
     }
 }
 
@@ -228,46 +194,44 @@ private fun StotraListRow(
     subtitle: String,
     tag: String,
     onOpen: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 72.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(role = Role.Button, onClick = onOpen)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
+            .testTag(tag),
     ) {
-        Column(
-            Modifier
-                .weight(1f)
-                .clickable(role = Role.Button, onClick = onOpen)
-                .padding(horizontal = 20.dp, vertical = 14.dp)
-                .testTag(tag),
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onDelete, modifier = Modifier.testTag("delete_$tag")) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete $title")
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StotraReaderRoute(file: String, onBack: () -> Unit) {
-    if (StotraId.fromFile(file) != null) BuiltInStotraReader(file, onBack) else SavedStotraReader(file, onBack)
+    val context = LocalContext.current
+    val saved = remember { CustomStotraStore(context) }
+    val remove = {
+        saved.delete(file)
+        onBack()
+    }
+    if (StotraId.fromFile(file) != null) BuiltInStotraReader(file, onBack, remove) else SavedStotraReader(file, onBack, remove)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BuiltInStotraReader(file: String, onBack: () -> Unit) {
+private fun BuiltInStotraReader(file: String, onBack: () -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
     val stotra = StotraId.fromFile(file)
     val store = remember { StotraLanguageStore(context) }
@@ -293,22 +257,23 @@ private fun BuiltInStotraReader(file: String, onBack: () -> Unit) {
             store.saveBookmark(stotra, language, offset)
             bookmark = offset
         },
+        onDelete = onDelete,
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SavedStotraReader(file: String, onBack: () -> Unit) {
+private fun SavedStotraReader(file: String, onBack: () -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
     val saved = remember { CustomStotraStore(context) }
     val entries by saved.entries.collectAsStateWithLifecycle()
     val entry = entries.firstOrNull { it.id == file }
-    if (entry == null) StotraMissing(onBack) else SavedStotraBody(entry, onBack)
+    if (entry == null) StotraMissing(onBack) else SavedStotraBody(entry, onBack, onDelete)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SavedStotraBody(entry: CustomStotra, onBack: () -> Unit) {
+private fun SavedStotraBody(entry: CustomStotra, onBack: () -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
     val saved = remember { CustomStotraStore(context) }
     val store = remember { StotraLanguageStore(context) }
@@ -327,6 +292,8 @@ private fun SavedStotraBody(entry: CustomStotra, onBack: () -> Unit) {
             store.saveBookmark(entry.id, StotraLanguage.TELUGU, offset)
             bookmark = offset
         },
+        onDelete = onDelete,
+        savedOnThisPhone = true,
     )
 }
 
@@ -365,6 +332,8 @@ private fun SavedStotraReaderScreen(
     textSize: StotraTextSize,
     bookmark: Int,
     onBookmark: (Int) -> Unit,
+    onDelete: () -> Unit,
+    savedOnThisPhone: Boolean,
 ) {
     val scroll = rememberRestoredScroll(initialScroll, onScroll)
     val scope = rememberCoroutineScope()
@@ -389,7 +358,14 @@ private fun SavedStotraReaderScreen(
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(Modifier.height(8.dp))
-            StotraReaderTools(body = body, scroll = scroll, bookmark = bookmark, onBookmark = onBookmark)
+            StotraReaderTools(
+                body = body,
+                scroll = scroll,
+                bookmark = bookmark,
+                onBookmark = onBookmark,
+                onDelete = onDelete,
+                savedOnThisPhone = savedOnThisPhone,
+            )
             Spacer(Modifier.height(12.dp))
             Box(
                 Modifier
@@ -523,6 +499,8 @@ fun StotraReaderScreen(
     textSize: StotraTextSize = StotraTextSize.MEDIUM,
     bookmark: Int = StotraLanguageStore.NO_BOOKMARK,
     onBookmark: (Int) -> Unit = {},
+    onDelete: (() -> Unit)? = null,
+    savedOnThisPhone: Boolean = false,
 ) {
     val scroll = key(stotra.file, language) {
         rememberRestoredScroll(initialScroll) { offset -> onScroll(stotra, language, offset) }
@@ -572,6 +550,8 @@ fun StotraReaderScreen(
                 scroll = scroll,
                 bookmark = bookmark,
                 onBookmark = onBookmark,
+                onDelete = onDelete,
+                savedOnThisPhone = savedOnThisPhone,
             )
             Spacer(Modifier.height(12.dp))
             Box(
@@ -613,17 +593,21 @@ private fun StotraReaderTools(
     scroll: androidx.compose.foundation.ScrollState,
     bookmark: Int,
     onBookmark: (Int) -> Unit,
+    onDelete: (() -> Unit)? = null,
+    savedOnThisPhone: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var hit by remember { mutableIntStateOf(0) }
     var searching by remember { mutableStateOf(false) }
     var toolsOpen by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     LaunchedEffect(body) {
         query = ""
         hit = 0
         searching = false
         toolsOpen = false
+        confirmDelete = false
     }
     val matches = stotraMatchStarts(body, query)
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -632,7 +616,10 @@ private fun StotraReaderTools(
                 onClick = { toolsOpen = true },
                 modifier = Modifier.testTag("stotra_tools"),
             ) {
-                Icon(Icons.Filled.Search, contentDescription = "Search and bookmark")
+                Icon(
+                    Icons.Filled.Search,
+                    contentDescription = if (onDelete == null) "Search and bookmark" else "Search, bookmark, and delete",
+                )
             }
             DropdownMenu(expanded = toolsOpen, onDismissRequest = { toolsOpen = false }) {
                 DropdownMenuItem(
@@ -661,8 +648,45 @@ private fun StotraReaderTools(
                         modifier = Modifier.testTag("stotra_bookmark_go"),
                     )
                 }
+                if (onDelete != null) {
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            toolsOpen = false
+                            confirmDelete = true
+                        },
+                        modifier = Modifier.testTag("stotra_delete"),
+                    )
+                }
             }
         }
+    }
+    if (confirmDelete && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Remove this stotra?") },
+            text = {
+                Text(
+                    if (savedOnThisPhone) {
+                        "This deletes the text you saved."
+                    } else {
+                        "This removes it from the list. The included stotras can be shown again."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                    modifier = Modifier.testTag("confirm_delete_stotra"),
+                ) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            },
+        )
     }
     if (searching) {
         OutlinedTextField(

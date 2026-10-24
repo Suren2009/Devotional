@@ -83,8 +83,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.count.AutoCountHost
 import com.pradarshana.app.count.AutoCountService
+import com.pradarshana.app.count.VolumeCount
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.core.data.CompletionVibration
+import com.pradarshana.core.data.CountFeedbackPreferences
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.app.ui.components.PauseIcon
 import com.pradarshana.app.ui.components.SessionMark
@@ -93,6 +95,7 @@ import com.pradarshana.core.data.presentation.CounterUiState
 import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.components.ProgressRing
 import com.pradarshana.app.ui.theme.CounterNumberStyle
+import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.MalaDrag
 import com.pradarshana.core.model.MalaSide
 import com.pradarshana.core.model.PradarshanaSession
@@ -114,9 +117,9 @@ fun CounterRoute(
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                CounterEvent.RoundCounted -> if (feedback?.vibrateOnCount?.value != false) CompletionVibration.tap(view.context)
+                is CounterEvent.RoundCounted -> vibrateForCount(view.context, feedback, event.completed, event.target)
                 CounterEvent.Completed -> {
-                    CompletionVibration.start(view.context)
+                    if (feedback?.guruBell?.value == true) CompletionVibration.guru(view.context) else CompletionVibration.start(view.context)
                     onCompleted(sessionId)
                 }
                 CounterEvent.Ended -> onEnded()
@@ -154,10 +157,23 @@ fun CounterRoute(
                 val side by feedback.malaSide.collectAsStateWithLifecycle()
                 side
             }
+            val undoLast = if (feedback == null) {
+                false
+            } else {
+                val enabled by feedback.undoLast.collectAsStateWithLifecycle()
+                enabled
+            }
+            val volumeCount = if (feedback == null) {
+                false
+            } else {
+                val enabled by feedback.volumeCount.collectAsStateWithLifecycle()
+                enabled
+            }
             AutoCountHost(s.session)
             CounterScreen(
                 session = s.session,
                 onIncrement = viewModel::increment,
+                onUndo = viewModel::undo,
                 onTogglePause = viewModel::togglePause,
                 onEndSession = viewModel::endSession,
                 onBack = onBack,
@@ -165,6 +181,8 @@ fun CounterRoute(
                 autoCount = autoCount,
                 malaDrag = malaDrag,
                 malaSide = malaSide,
+                undoLast = undoLast,
+                volumeCount = volumeCount,
             )
         }
     }
@@ -182,6 +200,9 @@ fun CounterScreen(
     autoCount: Boolean = false,
     malaDrag: Boolean = false,
     malaSide: MalaSide = MalaSide.RIGHT,
+    undoLast: Boolean = false,
+    onUndo: () -> Unit = {},
+    volumeCount: Boolean = false,
 ) {
     val automatic = autoCount && session.kind == SessionKind.PRADARSHANA
     val mala = malaDrag && session.kind == SessionKind.CHANTING
@@ -216,6 +237,18 @@ fun CounterScreen(
             plusClicks += 1
             if (plusClicks >= 2) blackout = true
         }
+    }
+
+    DisposableEffect(volumeCount, automatic, session.id, session.canIncrement) {
+        VolumeCount.handler = if (volumeCount && !automatic && session.canIncrement) {
+            {
+                onPlus()
+                true
+            }
+        } else {
+            null
+        }
+        onDispose { VolumeCount.handler = null }
     }
 
     if (blackout && session.status != SessionStatus.COMPLETED) {
@@ -283,6 +316,18 @@ fun CounterScreen(
                 ) {
                     ProgressRing(progress = session.progressFraction, modifier = Modifier.fillMaxSize())
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (session.mantra.isNotEmpty()) {
+                            Text(
+                                session.mantra,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.62f)
+                                    .testTag("session_mantra"),
+                            )
+                        }
                         Text(
                             session.kind.countHeading,
                             style = MaterialTheme.typography.labelLarge,
@@ -353,6 +398,15 @@ fun CounterScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.testTag("mala_hint"),
                 )
+            }
+            if (undoLast && session.canIncrement && session.completedCount > 0) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = onUndo,
+                    modifier = Modifier.testTag("undo_button"),
+                ) {
+                    Text("Undo last count")
+                }
             }
             Spacer(Modifier.height(20.dp))
 
@@ -684,6 +738,14 @@ private fun KeepScreenOn(enabled: Boolean) {
             view.keepScreenOn = false
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+    }
+}
+
+private fun vibrateForCount(context: Context, feedback: CountFeedbackPreferences?, completed: Int, target: Int) {
+    if (feedback?.guruBell?.value == true && CounterRules.isHalfway(target, completed)) {
+        CompletionVibration.guru(context)
+    } else if (feedback?.vibrateOnCount?.value != false) {
+        CompletionVibration.tap(context)
     }
 }
 

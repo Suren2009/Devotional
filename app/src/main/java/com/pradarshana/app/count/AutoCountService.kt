@@ -27,6 +27,7 @@ import com.pradarshana.core.data.IncrementResult
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.location.hasLocationPermission
+import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.ReturnToPointTracker
 import com.pradarshana.core.model.ReturnVisit
@@ -149,17 +150,24 @@ class AutoCountService : Service() {
             return current
         }
         trackedSessionId = session.id
-        progress("Stand at the starting place")
+        val temple = feedback.matchingTemple(session.latitude, session.longitude)
+        progress(if (temple == null) "Stand at the starting place" else "Using ${temple.name}. Walk away, then come back.")
         return ReturnToPointTracker(
             awayMeters = awayMeters,
             returnMeters = returnMeters,
+            anchorLatitude = temple?.latitude,
+            anchorLongitude = temple?.longitude,
         ).also { tracker = it }
     }
 
     private suspend fun countRound(sessionId: String) {
-        when (repository.increment(sessionId)) {
-            is IncrementResult.Counted -> if (feedback.vibrateOnCount.value) CompletionVibration.tap(this)
-            is IncrementResult.Completed -> CompletionVibration.start(this)
+        when (val result = repository.increment(sessionId)) {
+            is IncrementResult.Counted -> when {
+                feedback.guruBell.value && CounterRules.isHalfway(result.session.targetCount, result.session.completedCount) ->
+                    CompletionVibration.guru(this)
+                feedback.vibrateOnCount.value -> CompletionVibration.tap(this)
+            }
+            is IncrementResult.Completed -> if (feedback.guruBell.value) CompletionVibration.guru(this) else CompletionVibration.start(this)
             is IncrementResult.Rejected -> Unit
         }
     }

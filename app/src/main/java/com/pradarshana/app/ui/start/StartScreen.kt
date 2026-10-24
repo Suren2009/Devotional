@@ -55,6 +55,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.ui.appViewModel
+import com.pradarshana.app.ui.stotra.StotraId
 import com.pradarshana.core.data.CountFeedbackPreferences
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
@@ -69,6 +70,7 @@ import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.CounterRules.TargetValidation
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SavedTemple
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -90,6 +92,8 @@ class StartViewModel(
     var counts by mutableStateOf(CommonCounts.defaults)
         private set
     var kind by mutableStateOf(SessionKind.PRADARSHANA)
+        private set
+    var mantra by mutableStateOf("")
         private set
     private var titleEdited = false
     private var kindEdited = false
@@ -126,14 +130,36 @@ class StartViewModel(
         error = null
     }
 
-    fun start(captureLocation: Boolean = false) {
+    fun onMantraChange(value: String) {
+        mantra = value.take(SessionDetails.MAX_MANTRA_LENGTH)
+    }
+
+    fun start(captureLocation: Boolean = false, place: SavedTemple? = null) {
         if (starting) return
         when (val validation = CounterRules.validateTarget(input)) {
             is TargetValidation.Valid -> {
                 starting = true
+                val chosenMantra = mantra
                 viewModelScope.launch {
-                    val fix = if (captureLocation) runCatching { locationCapture.capture() }.getOrNull() else null
-                    when (val result = repository.startSession(validation.target, title, fix?.latitude, fix?.longitude, kind)) {
+                    val fix = if (place != null) {
+                        null
+                    } else if (captureLocation) {
+                        runCatching { locationCapture.capture() }.getOrNull()
+                    } else {
+                        null
+                    }
+                    val latitude = place?.latitude ?: fix?.latitude
+                    val longitude = place?.longitude ?: fix?.longitude
+                    when (
+                        val result = repository.startSession(
+                            validation.target,
+                            title,
+                            latitude,
+                            longitude,
+                            kind,
+                            chosenMantra,
+                        )
+                    ) {
                         is StartResult.Started -> _started.send(result.sessionId)
                         is StartResult.Invalid -> error = messageFor(result.reason, kind)
                     }
@@ -173,6 +199,8 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
     var chosenSide by remember { mutableStateOf<MalaSide?>(null) }
     val malaDrag = chosenMala ?: savedMala
     val malaSide = chosenSide ?: savedSide
+    val temples = if (feedback == null) emptyList() else SavedTemples(feedback)
+    var chosenTempleId by remember { mutableStateOf<String?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.start(granted || context.hasLocationPermission())
     }
@@ -193,13 +221,24 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
         onMalaDragChange = { chosenMala = it },
         malaSide = malaSide,
         onMalaSideChange = { chosenSide = it },
+        mantra = vm.mantra,
+        onMantraChange = vm::onMantraChange,
+        temples = temples,
+        chosenTempleId = chosenTempleId,
+        onTempleChange = { chosenTempleId = it },
         onStart = {
             if (vm.kind == SessionKind.PRADARSHANA) feedback?.setAutoCount(automatic)
             if (vm.kind == SessionKind.CHANTING) {
                 feedback?.setMalaDrag(malaDrag)
                 feedback?.setMalaSide(malaSide)
             }
-            if (context.hasLocationPermission()) vm.start(captureLocation = true)
+            val place = if (vm.kind == SessionKind.PRADARSHANA && automatic) {
+                temples.firstOrNull { it.id == chosenTempleId }
+            } else {
+                null
+            }
+            if (place != null) vm.start(captureLocation = false, place = place)
+            else if (context.hasLocationPermission()) vm.start(captureLocation = true)
             else permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         },
         onBack = onBack,
@@ -224,6 +263,12 @@ private fun SavedMalaSide(feedback: CountFeedbackPreferences): MalaSide {
     return side
 }
 
+@Composable
+private fun SavedTemples(feedback: CountFeedbackPreferences): List<SavedTemple> {
+    val temples by feedback.temples.collectAsStateWithLifecycle()
+    return temples
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun StartScreen(
@@ -244,6 +289,11 @@ fun StartScreen(
     onMalaDragChange: (Boolean) -> Unit = {},
     malaSide: MalaSide = MalaSide.RIGHT,
     onMalaSideChange: (MalaSide) -> Unit = {},
+    mantra: String = "",
+    onMantraChange: (String) -> Unit = {},
+    temples: List<SavedTemple> = emptyList(),
+    chosenTempleId: String? = null,
+    onTempleChange: (String?) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -309,6 +359,33 @@ fun StartScreen(
                         Text("Automatic")
                     }
                 }
+                if (automatic && temples.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Starting place", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SuggestionChip(
+                            onClick = { onTempleChange(null) },
+                            label = { Text("This walk's GPS") },
+                            modifier = Modifier.testTag("temple_gps"),
+                        )
+                        temples.forEach { temple ->
+                            SuggestionChip(
+                                onClick = { onTempleChange(temple.id) },
+                                label = { Text(temple.name) },
+                                modifier = Modifier.testTag("temple_${temple.id}"),
+                            )
+                        }
+                    }
+                    Text(
+                        if (chosenTempleId == null) {
+                            "The phone saves the place where this walk begins."
+                        } else {
+                            "Rounds are counted when you return to ${temples.firstOrNull { it.id == chosenTempleId }?.name ?: "the saved temple"}."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     if (automatic) {
@@ -361,6 +438,27 @@ fun StartScreen(
                         ) {
                             Text("Right")
                         }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = mantra,
+                    onValueChange = onMantraChange,
+                    label = { Text("Mantra") },
+                    placeholder = { Text("Optional") },
+                    supportingText = { Text("Shown on the counting screen. Leave blank to hide it.") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("mantra_input"),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StotraId.entries.forEach { stotra ->
+                        SuggestionChip(
+                            onClick = { onMantraChange(stotra.titleEn) },
+                            label = { Text(stotra.titleEn) },
+                            modifier = Modifier.testTag("mantra_${stotra.file}"),
+                        )
                     }
                 }
                 Spacer(Modifier.height(8.dp))

@@ -1,5 +1,7 @@
 package com.pradarshana.app.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +37,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,9 +60,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.PradarshanaApp
+import com.pradarshana.app.ui.stotra.StotraLanguageStore
+import com.pradarshana.app.ui.stotra.StotraTextSize
 import com.pradarshana.app.ui.theme.ThemeMode
 import com.pradarshana.core.model.AutoCountDistances
 import com.pradarshana.core.model.MalaSide
+import com.pradarshana.core.model.SavedTemple
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsRoute(onBack: () -> Unit) {
@@ -70,6 +81,38 @@ fun SettingsRoute(onBack: () -> Unit) {
     val returnMeters by app.container.countFeedback.returnMeters.collectAsStateWithLifecycle()
     val malaDrag by app.container.countFeedback.malaDrag.collectAsStateWithLifecycle()
     val malaSide by app.container.countFeedback.malaSide.collectAsStateWithLifecycle()
+    val undoLast by app.container.countFeedback.undoLast.collectAsStateWithLifecycle()
+    val volumeCount by app.container.countFeedback.volumeCount.collectAsStateWithLifecycle()
+    val guruBell by app.container.countFeedback.guruBell.collectAsStateWithLifecycle()
+    val showTotals by app.container.countFeedback.showTotals.collectAsStateWithLifecycle()
+    val temples by app.container.countFeedback.temples.collectAsStateWithLifecycle()
+    val stotraStore = remember { StotraLanguageStore(app) }
+    val textSize by stotraStore.textSize.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val json = app.container.repository.exportHistory()
+            val written = withContext(Dispatchers.IO) {
+                runCatching {
+                    app.contentResolver.openOutputStream(uri)?.use { stream -> stream.write(json.toByteArray(Charsets.UTF_8)) }
+                    true
+                }.getOrDefault(false)
+            }
+            backupMessage = if (written) "History saved." else "Could not save the history file."
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val json = withContext(Dispatchers.IO) {
+                runCatching { app.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
+            }
+            val kept = if (json == null) -1 else app.container.repository.importHistory(json)
+            backupMessage = if (kept < 0) "That file could not be read." else "Brought in $kept sessions."
+        }
+    }
     SettingsScreen(
         mode = mode,
         onMode = app.themeStore::set,
@@ -86,6 +129,30 @@ fun SettingsRoute(onBack: () -> Unit) {
         onMalaDrag = app.container.countFeedback::setMalaDrag,
         malaSide = malaSide,
         onMalaSide = app.container.countFeedback::setMalaSide,
+        undoLast = undoLast,
+        onUndoLast = app.container.countFeedback::setUndoLast,
+        volumeCount = volumeCount,
+        onVolumeCount = app.container.countFeedback::setVolumeCount,
+        guruBell = guruBell,
+        onGuruBell = app.container.countFeedback::setGuruBell,
+        showTotals = showTotals,
+        onShowTotals = app.container.countFeedback::setShowTotals,
+        temples = temples,
+        onSaveTemple = { name, latitude, longitude ->
+            val lat = latitude.toDoubleOrNull()
+            val lng = longitude.toDoubleOrNull()
+            if (lat == null || lng == null || !app.container.countFeedback.saveTemple(name, lat, lng)) {
+                backupMessage = "Enter a name and a valid place."
+            } else {
+                backupMessage = "Temple saved."
+            }
+        },
+        onDeleteTemple = app.container.countFeedback::deleteTemple,
+        textSize = textSize,
+        onTextSize = stotraStore::setTextSize,
+        backupMessage = backupMessage,
+        onExport = { exportLauncher.launch("pradarshana-history.json") },
+        onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
         onBack = onBack,
     )
 }
@@ -109,6 +176,22 @@ fun SettingsScreen(
     onMalaDrag: (Boolean) -> Unit = {},
     malaSide: MalaSide = MalaSide.RIGHT,
     onMalaSide: (MalaSide) -> Unit = {},
+    undoLast: Boolean = false,
+    onUndoLast: (Boolean) -> Unit = {},
+    volumeCount: Boolean = false,
+    onVolumeCount: (Boolean) -> Unit = {},
+    guruBell: Boolean = false,
+    onGuruBell: (Boolean) -> Unit = {},
+    showTotals: Boolean = false,
+    onShowTotals: (Boolean) -> Unit = {},
+    temples: List<SavedTemple> = emptyList(),
+    onSaveTemple: (String, String, String) -> Unit = { _, _, _ -> },
+    onDeleteTemple: (String) -> Unit = {},
+    textSize: StotraTextSize = StotraTextSize.MEDIUM,
+    onTextSize: (StotraTextSize) -> Unit = {},
+    backupMessage: String? = null,
+    onExport: () -> Unit = {},
+    onImport: () -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -301,7 +384,203 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(16.dp))
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            OptionSwitch(
+                title = "Undo last count",
+                body = "Shows Undo on the counting screen. It takes back one count made on this phone, and a finished session stays finished.",
+                checked = undoLast,
+                onChecked = onUndoLast,
+                tag = "undo_last_count",
+            )
+            OptionSwitch(
+                title = "Volume buttons count",
+                body = "While a session is open, the volume keys add one count and leave the volume alone.",
+                checked = volumeCount,
+                onChecked = onVolumeCount,
+                tag = "volume_count",
+            )
+            OptionSwitch(
+                title = "Guru bead vibration",
+                body = "A stronger pulse at halfway and when the session is finished.",
+                checked = guruBell,
+                onChecked = onGuruBell,
+                tag = "guru_bell",
+            )
+            OptionSwitch(
+                title = "Show counted totals",
+                body = "Home shows how many counts were made today, this week and this month.",
+                checked = showTotals,
+                onChecked = onShowTotals,
+                tag = "show_totals",
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                "Stotra text",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            SingleChoiceSegmentedButtonRow(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            ) {
+                StotraTextSize.entries.forEachIndexed { index, size ->
+                    SegmentedButton(
+                        selected = textSize == size,
+                        onClick = { onTextSize(size) },
+                        shape = SegmentedButtonDefaults.itemShape(index, StotraTextSize.entries.size),
+                        modifier = Modifier.testTag("stotra_text_${size.stored}"),
+                    ) {
+                        Text(
+                            when (size) {
+                                StotraTextSize.SMALL -> "Small"
+                                StotraTextSize.MEDIUM -> "Medium"
+                                StotraTextSize.LARGE -> "Large"
+                            },
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                "Saved temples",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            Text(
+                "A saved place can be the start of an automatic Pradarshana. The walk still uses location only while automatic counting is on.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            TempleEditor(onSaveTemple)
+            temples.forEach { temple ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(temple.name, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "${temple.latitude}, ${temple.longitude}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = { onDeleteTemple(temple.id) }, modifier = Modifier.testTag("delete_temple_${temple.id}")) {
+                        Text("Remove")
+                    }
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                "History file",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            Text(
+                "Save a copy of history, or bring a copy back. Sessions you deleted stay deleted.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Row(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(16.dp),
+            ) {
+                Button(onClick = onExport, modifier = Modifier.testTag("export_history")) { Text("Save history") }
+                Button(onClick = onImport, modifier = Modifier.testTag("import_history")) { Text("Bring history in") }
+            }
+            if (backupMessage != null) {
+                Text(
+                    backupMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .testTag("backup_message"),
+                )
+            }
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun OptionSwitch(
+    title: String,
+    body: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit,
+    tag: String,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .clickable(role = Role.Switch) { onChecked(!checked) }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .testTag(tag),
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChecked)
+    }
+}
+
+@Composable
+private fun TempleEditor(onSave: (String, String, String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var latitude by remember { mutableStateOf("") }
+    var longitude by remember { mutableStateOf("") }
+    Spacer(Modifier.height(8.dp))
+    OutlinedTextField(
+        value = name,
+        onValueChange = { name = it.take(60) },
+        label = { Text("Temple name") },
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .keepVisibleAboveKeyboard()
+            .testTag("temple_name"),
+    )
+    OutlinedTextField(
+        value = latitude,
+        onValueChange = { latitude = it.take(12) },
+        label = { Text("Latitude") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .keepVisibleAboveKeyboard()
+            .testTag("temple_latitude"),
+    )
+    OutlinedTextField(
+        value = longitude,
+        onValueChange = { longitude = it.take(12) },
+        label = { Text("Longitude") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .keepVisibleAboveKeyboard()
+            .testTag("temple_longitude"),
+    )
+    Button(
+        onClick = { onSave(name, latitude, longitude) },
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .testTag("save_temple"),
+    ) {
+        Text("Save temple")
     }
 }
 

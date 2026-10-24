@@ -107,6 +107,33 @@ class SessionMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun version5SessionsKeepTheirHistoryWhenMantraAndUndosAreAdded() {
+        helper.createDatabase("migrate-v5.db", 5).apply {
+            execSQL(
+                """INSERT INTO sessions (id, target_count, completed_count, start_time, end_time, status,
+                   status_updated_at, status_updated_by, last_updated_time, origin_device_id, local_version,
+                   synced_version, title, kind, paused_millis)
+                   VALUES ('s1', 108, 27, 1, NULL, 'ACTIVE', 1, 'phone', 1, 'phone', 1, 0, 'Temple', 'PRADARSHANA', 0)""",
+            )
+            execSQL("INSERT INTO session_device_counts (session_id, device_id, count) VALUES ('s1', 'phone', 27)")
+            close()
+        }
+        val migrated = helper.runMigrationsAndValidate("migrate-v5.db", 6, true, PradarshanaDatabase.MIGRATION_5_6)
+        migrated.query("SELECT title, completed_count, mantra FROM sessions WHERE id = 's1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Temple", cursor.getString(0))
+            assertEquals(27, cursor.getInt(1))
+            assertEquals("", cursor.getString(2))
+        }
+        migrated.query("SELECT count, undos FROM session_device_counts WHERE session_id = 's1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(27, cursor.getInt(0))
+            assertEquals(0, cursor.getInt(1))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DB_NAME = "migrate-v1.db"
     }

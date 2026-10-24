@@ -59,6 +59,26 @@ class SnapshotCodecTest {
     }
 
     @Test
+    fun undoAndMantraRoundTripAndOlderPayloadsStayValid() {
+        val withUndo = snapshot.copy(
+            deviceUndos = sortedMapOf("phone-1" to 2),
+            mantra = "Om Namah Shivaya",
+        )
+        val map = DataMap().also { SnapshotCodec.write(it, withUndo, "phone-1") }
+        val decoded = SnapshotCodec.read(map)!!.snapshot
+        assertEquals(2, decoded.deviceUndos["phone-1"])
+        assertEquals("Om Namah Shivaya", decoded.mantra)
+        assertEquals(25, decoded.completedCount)
+        map.remove("undo_devices")
+        map.remove("undo_values")
+        map.remove("mantra")
+        val older = SnapshotCodec.read(map)!!.snapshot
+        assertEquals(emptyMap<String, Int>(), older.deviceUndos)
+        assertEquals("", older.mantra)
+        assertEquals(27, older.completedCount)
+    }
+
+    @Test
     fun malformedPayloadsAreIgnored() {
         assertNull(SnapshotCodec.read(DataMap()))
         val map = DataMap().also { SnapshotCodec.write(it, snapshot, "phone-1") }

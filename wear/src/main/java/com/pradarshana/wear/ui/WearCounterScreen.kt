@@ -27,12 +27,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -60,6 +65,7 @@ import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.presentation.CounterEvent
 import com.pradarshana.core.data.presentation.CounterUiState
 import com.pradarshana.core.data.presentation.CounterViewModel
+import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionStatus
 
@@ -76,9 +82,13 @@ fun WearCounterRoute(
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                CounterEvent.RoundCounted -> if (feedback?.vibrateOnCount?.value != false) CompletionVibration.tap(view.context)
+                is CounterEvent.RoundCounted -> {
+                    val guru = feedback?.guruBell?.value == true && CounterRules.isHalfway(event.target, event.completed)
+                    if (guru) CompletionVibration.guru(view.context)
+                    else if (feedback?.vibrateOnCount?.value != false) CompletionVibration.tap(view.context)
+                }
                 CounterEvent.Completed -> {
-                    CompletionVibration.start(view.context)
+                    if (feedback?.guruBell?.value == true) CompletionVibration.guru(view.context) else CompletionVibration.start(view.context)
                     onCompleted(sessionId)
                 }
                 CounterEvent.Ended -> onEnded()
@@ -88,12 +98,21 @@ fun WearCounterRoute(
     when (val s = state) {
         CounterUiState.Loading -> Unit
         CounterUiState.Missing -> LaunchedEffect(Unit) { onEnded() }
-        is CounterUiState.Ready -> WearCounterScreen(
-            session = s.session,
-            onIncrement = viewModel::increment,
-            onTogglePause = viewModel::togglePause,
-            onEnd = viewModel::endSession,
-        )
+        is CounterUiState.Ready -> {
+            val crownCount = if (feedback == null) {
+                false
+            } else {
+                val enabled by feedback.crownCount.collectAsStateWithLifecycle()
+                enabled
+            }
+            WearCounterScreen(
+                session = s.session,
+                onIncrement = viewModel::increment,
+                onTogglePause = viewModel::togglePause,
+                onEnd = viewModel::endSession,
+                crownCount = crownCount,
+            )
+        }
     }
 }
 
@@ -104,6 +123,7 @@ fun WearCounterScreen(
     onTogglePause: () -> Unit,
     onEnd: () -> Unit,
     batterySaverEnabled: Boolean = true,
+    crownCount: Boolean = false,
 ) {
     KeepScreenOn()
     val paused = session.status == SessionStatus.PAUSED
@@ -120,6 +140,12 @@ fun WearCounterScreen(
         if (!batterySaverEnabled) wake()
     }
 
+    val crownFocus = remember { FocusRequester() }
+    var lastCrownAt by remember { mutableStateOf(0L) }
+    LaunchedEffect(crownCount) {
+        if (crownCount) runCatching { crownFocus.requestFocus() }
+    }
+
     fun onPlus() {
         if (!session.canIncrement) return
         val completesNow = session.completedCount + 1 >= session.targetCount
@@ -134,9 +160,23 @@ fun WearCounterScreen(
         }
     }
 
+    fun onCrown(pixels: Float): Boolean {
+        if (!crownCount || !session.canIncrement || kotlin.math.abs(pixels) < 1f) return false
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastCrownAt < 280L) return true
+        lastCrownAt = now
+        onPlus()
+        return true
+    }
+
+    val crownModifier = Modifier
+        .focusRequester(crownFocus)
+        .onRotaryScrollEvent { event -> onCrown(event.verticalScrollPixels) }
+        .focusable()
+
     if (blackout && session.status != SessionStatus.COMPLETED) {
         BoxWithConstraints(
-            Modifier
+            crownModifier
                 .fillMaxSize()
                 .background(Color.Black)
                 .pointerInput(Unit) { detectTapGestures(onDoubleTap = { wake() }) }
@@ -158,7 +198,7 @@ fun WearCounterScreen(
     }
 
     Scaffold(timeText = { TimeText() }) {
-        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(crownModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val plusSize = (maxWidth * 0.36f).coerceIn(56.dp, 84.dp)
             CircularProgressIndicator(
                 progress = session.progressFraction,

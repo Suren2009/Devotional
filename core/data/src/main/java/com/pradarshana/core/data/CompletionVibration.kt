@@ -16,6 +16,19 @@ object CompletionVibration {
 
     fun tap(context: Context) = pulse(context, TAP_DURATION_MILLIS, VibrationEffect.DEFAULT_AMPLITUDE)
 
+    /** A stronger two-beat pulse for the halfway guru bead and for the final name when that option is on. */
+    fun guru(context: Context) {
+        val vibrator = vibrator(context.applicationContext) ?: return
+        if (!vibrator.hasVibrator()) return
+        vibrator.vibrate(
+            VibrationEffect.createWaveform(
+                longArrayOf(0, 220, 90, 320),
+                intArrayOf(0, 255, 0, 255),
+                -1,
+            ),
+        )
+    }
+
     private fun pulse(context: Context, durationMillis: Long, amplitude: Int) {
         val vibrator = vibrator(context.applicationContext) ?: return
         if (!vibrator.hasVibrator()) return

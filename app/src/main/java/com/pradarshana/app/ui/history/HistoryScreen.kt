@@ -3,6 +3,11 @@ package com.pradarshana.app.ui.history
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -42,6 +47,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -54,7 +60,10 @@ import com.pradarshana.app.ui.components.SessionMark
 import com.pradarshana.app.ui.theme.LocalTempleColors
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.sync.SyncManager
+import com.pradarshana.core.data.CountFeedbackPreferences
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.model.DurationFormat
+import com.pradarshana.core.model.HistoryFilter
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionStatus
 import kotlinx.coroutines.flow.SharingStarted
@@ -80,6 +89,9 @@ fun HistoryRoute(onBack: () -> Unit, onOpen: (String) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val vm = appViewModel { HistoryViewModel(it.repository, it.syncManager) }
     val history by vm.history.collectAsStateWithLifecycle()
+    val feedback = (context.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
+    val filter = if (feedback == null) HistoryFilter.ALL else CollectedFilter(feedback)
+    val query = if (feedback == null) "" else CollectedQuery(feedback)
     HistoryScreen(
         history = history,
         onBack = onBack,
@@ -87,7 +99,23 @@ fun HistoryRoute(onBack: () -> Unit, onOpen: (String) -> Unit) {
         onClear = vm::clearHistory,
         onDelete = { vm.delete(it.id) },
         onShowMap = { openSessionInMaps(context, it) },
+        filter = filter,
+        onFilter = { feedback?.setHistoryFilter(it) },
+        query = query,
+        onQuery = { feedback?.setHistoryQuery(it) },
     )
+}
+
+@Composable
+private fun CollectedFilter(feedback: CountFeedbackPreferences): HistoryFilter {
+    val filter by feedback.historyFilter.collectAsStateWithLifecycle()
+    return filter
+}
+
+@Composable
+private fun CollectedQuery(feedback: CountFeedbackPreferences): String {
+    val query by feedback.historyQuery.collectAsStateWithLifecycle()
+    return query
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,9 +127,17 @@ fun HistoryScreen(
     onClear: () -> Unit,
     onShowMap: (PradarshanaSession) -> Unit = {},
     onDelete: (PradarshanaSession) -> Unit = {},
+    filter: HistoryFilter = HistoryFilter.ALL,
+    onFilter: (HistoryFilter) -> Unit = {},
+    query: String = "",
+    onQuery: (String) -> Unit = {},
 ) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val shown = history?.filter { session ->
+        filter.matches(session.kind) &&
+            (query.isBlank() || session.displayTitle.contains(query.trim(), ignoreCase = true))
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -127,18 +163,67 @@ fun HistoryScreen(
         when {
             history == null -> Unit
             history.isEmpty() -> EmptyHistory(Modifier.padding(padding))
-            else -> LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 4.dp, bottom = padding.calculateBottomPadding() + 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.testTag("history_list"),
+            else -> Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
             ) {
-                items(history, key = { it.id }) { session ->
-                    HistoryItem(
-                        session,
-                        onClick = { onOpen(session.id) },
-                        onShowMap = { onShowMap(session) },
-                        onDelete = { pendingDeleteId = session.id },
+                Spacer(Modifier.height(4.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    HistoryFilter.entries.forEachIndexed { index, option ->
+                        SegmentedButton(
+                            selected = filter == option,
+                            onClick = { onFilter(option) },
+                            shape = SegmentedButtonDefaults.itemShape(index, HistoryFilter.entries.size),
+                            modifier = Modifier.testTag("history_filter_${option.stored}"),
+                        ) {
+                            Text(
+                                when (option) {
+                                    HistoryFilter.ALL -> "All"
+                                    HistoryFilter.WALKS -> "Walks"
+                                    HistoryFilter.CHANTING -> "Chants"
+                                },
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQuery,
+                    label = { Text("Title") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("history_query"),
+                )
+                Spacer(Modifier.height(8.dp))
+                if (shown.isNullOrEmpty()) {
+                    Text(
+                        "Nothing matches this filter.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 24.dp),
                     )
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("history_list"),
+                    ) {
+                        items(shown, key = { it.id }) { session ->
+                            HistoryItem(
+                                session,
+                                onClick = { onOpen(session.id) },
+                                onShowMap = { onShowMap(session) },
+                                onDelete = { pendingDeleteId = session.id },
+                            )
+                        }
+                    }
                 }
             }
         }

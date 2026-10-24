@@ -37,6 +37,8 @@ fun WearHomeScreen(
     onStart: () -> Unit,
     vibrateOnCount: Boolean = true,
     onToggleVibration: () -> Unit = {},
+    crownCount: Boolean = false,
+    onToggleCrown: () -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     Scaffold(
@@ -86,6 +88,15 @@ fun WearHomeScreen(
                     label = { Text(if (vibrateOnCount) "Tap vibration on" else "Tap vibration off") },
                     colors = ChipDefaults.secondaryChipColors(),
                     modifier = Modifier.fillMaxWidth().testTag("wear_vibration"),
+                )
+            }
+            item {
+                Chip(
+                    onClick = onToggleCrown,
+                    label = { Text(if (crownCount) "Crown counts on" else "Crown counts off") },
+                    secondaryLabel = { Text("One turn counts one") },
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth().testTag("wear_crown"),
                 )
             }
         }

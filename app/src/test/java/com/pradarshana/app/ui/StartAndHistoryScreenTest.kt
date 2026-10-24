@@ -266,10 +266,13 @@ class StartAndHistoryScreenTest {
             }
         }
         compose.onNodeWithTag("count_mode_manual").assertExists()
+        compose.onNodeWithText("Target rounds").assertExists()
         compose.onNodeWithText("Tap + for each round. This is the usual counting screen.").assertExists()
         compose.onNodeWithTag("count_mode_auto").performClick()
         assertEquals(true, automatic)
         compose.onNodeWithTag("kind_CHANTING").performClick()
+        compose.onNodeWithText("No. of times chanting").assertExists()
+        compose.onNodeWithText("Target rounds").assertDoesNotExist()
         compose.onNodeWithTag("count_mode_manual").assertDoesNotExist()
         compose.onNodeWithTag("count_mode_auto").assertDoesNotExist()
     }

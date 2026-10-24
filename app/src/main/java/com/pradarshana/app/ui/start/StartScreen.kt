@@ -135,22 +135,25 @@ class StartViewModel(
                     val fix = if (captureLocation) runCatching { locationCapture.capture() }.getOrNull() else null
                     when (val result = repository.startSession(validation.target, title, fix?.latitude, fix?.longitude, kind)) {
                         is StartResult.Started -> _started.send(result.sessionId)
-                        is StartResult.Invalid -> error = messageFor(result.reason)
+                        is StartResult.Invalid -> error = messageFor(result.reason, kind)
                     }
                     starting = false
                 }
             }
-            else -> error = messageFor(validation)
+            else -> error = messageFor(validation, kind)
         }
     }
 
     companion object {
-        fun messageFor(validation: TargetValidation): String? = when (validation) {
-            is TargetValidation.Valid -> null
-            TargetValidation.Empty -> "Please enter the number of rounds."
-            TargetValidation.NotPositive -> "The number of rounds must be greater than zero."
-            TargetValidation.TooLarge -> "Please enter at most ${CounterRules.MAX_TARGET} rounds."
-            TargetValidation.NotANumber -> "Please enter a whole number."
+        fun messageFor(validation: TargetValidation, kind: SessionKind = SessionKind.PRADARSHANA): String? {
+            val counted = if (kind == SessionKind.CHANTING) "times" else "rounds"
+            return when (validation) {
+                is TargetValidation.Valid -> null
+                TargetValidation.Empty -> "Please enter the number of $counted."
+                TargetValidation.NotPositive -> "The number of $counted must be greater than zero."
+                TargetValidation.TooLarge -> "Please enter at most ${CounterRules.MAX_TARGET} $counted."
+                TargetValidation.NotANumber -> "Please enter a whole number."
+            }
         }
     }
 }
@@ -390,7 +393,9 @@ fun StartScreen(
             OutlinedTextField(
                 value = input,
                 onValueChange = onInputChange,
-                label = { Text("Target rounds") },
+                label = {
+                    Text(if (kind == SessionKind.CHANTING) "No. of times chanting" else "Target rounds")
+                },
                 placeholder = { Text("e.g. 108") },
                 singleLine = true,
                 isError = error != null,
@@ -411,7 +416,7 @@ fun StartScreen(
                         onClick = { onInputChange(preset.toString()) },
                         label = { Text(preset.toString()) },
                         modifier = Modifier
-                            .semantics { contentDescription = "$preset rounds" }
+                            .semantics { contentDescription = "$preset ${kind.unit}" }
                             .testTag("count_$preset"),
                     )
                 }

@@ -96,6 +96,8 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth(0.62f),
                     )
                     Text("${session.completedCount}", style = MaterialTheme.typography.displayMedium)
                     Text("of ${session.targetCount}", color = MaterialTheme.colorScheme.onSurfaceVariant)

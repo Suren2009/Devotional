@@ -287,8 +287,11 @@ fun CounterScreen(
                             session.kind.countHeading,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.testTag("count_heading"),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            modifier = Modifier
+                                .fillMaxWidth(0.52f)
+                                .testTag("count_heading"),
                         )
                         Text(
                             session.completedCount.toString(),

@@ -9,7 +9,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 **Phone**
 - Home screen with *Start Pradarshana*, *Pradarshana History*, and a *Resume* card while a session is in progress.
 - A session is either a **Pradarshana** (rounds walked) or **Chanting** (names). The start screen offers both, and remembers the latest choice. A Pradarshana also offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start. Chanting also offers **Plus** or **Drag down**. Drag down counts one name when you slide down a strip on the left or right edge and lift.
-- Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
+- Target entry with validation (must be a whole number from 1 to 100,000). A walk asks for **Target rounds**. A chant asks for **No. of times chanting**. Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
 - An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
 - Counting screen: the temple mandala for a Pradarshana, or a japa mala while chanting, with a large completed count. A walk is headed **Total rounds**. Chanting is headed **No. of times chanting**. Target, remaining, percentage and progress ring, a large **+** button,

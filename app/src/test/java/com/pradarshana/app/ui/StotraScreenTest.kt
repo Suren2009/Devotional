@@ -9,8 +9,11 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.home.HomeScreen
+import com.pradarshana.app.ui.stotra.CustomStotra
+import com.pradarshana.app.ui.stotra.StotraEditorScreen
 import com.pradarshana.app.ui.stotra.StotraId
 import com.pradarshana.app.ui.stotra.StotraLanguage
 import com.pradarshana.app.ui.stotra.StotraLanguageStore
@@ -137,5 +140,41 @@ class StotraScreenTest {
         assertEquals(StotraLanguageStore.NO_BOOKMARK, store.bookmark(StotraId.VISHNU, StotraLanguage.ENGLISH))
         store.saveBookmark(StotraId.VISHNU, StotraLanguage.ENGLISH, 40)
         assertEquals(40, StotraLanguageStore(context).bookmark(StotraId.VISHNU, StotraLanguage.ENGLISH))
+    }
+
+    @Test
+    fun aSavedStotraCanBeRemovedFromTheList() {
+        var removed by mutableStateOf<String?>(null)
+        compose.setContent {
+            PradarshanaTheme {
+                StotraListScreen(
+                    onBack = {},
+                    onOpen = {},
+                    custom = listOf(CustomStotra("c1abc", "Evening prayer")),
+                    onDelete = { removed = it },
+                )
+            }
+        }
+        compose.onNodeWithText("Evening prayer").assertExists()
+        compose.onNodeWithTag("delete_stotra_c1abc").performClick()
+        compose.onNodeWithText("This deletes the text you saved.").assertExists()
+        compose.onNodeWithTag("confirm_delete_stotra").performClick()
+        assertEquals("c1abc", removed)
+    }
+
+    @Test
+    fun editorKeepsANameAndText() {
+        var saved by mutableStateOf<Pair<String, String>?>(null)
+        compose.setContent {
+            PradarshanaTheme {
+                StotraEditorScreen(onBack = {}, onSave = { title, text -> saved = title to text })
+            }
+        }
+        compose.onNodeWithTag("save_stotra").performClick()
+        compose.onNodeWithText("Enter a name and the stotra text.").assertExists()
+        compose.onNodeWithTag("stotra_title_input").performTextInput("Evening prayer")
+        compose.onNodeWithTag("stotra_body_input").performTextInput("Om namah")
+        compose.onNodeWithTag("save_stotra").performClick()
+        assertEquals("Evening prayer" to "Om namah", saved)
     }
 }

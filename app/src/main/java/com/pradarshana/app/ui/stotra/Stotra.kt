@@ -53,18 +53,30 @@ class StotraLanguageStore(context: Context) {
         _textSize.value = size
     }
 
-    fun bookmark(stotra: StotraId, language: StotraLanguage): Int =
-        prefs.getInt(bookmarkKey(stotra, language), NO_BOOKMARK)
+    fun bookmark(stotra: StotraId, language: StotraLanguage): Int = bookmark(stotra.file, language)
+
+    fun bookmark(file: String, language: StotraLanguage): Int =
+        prefs.getInt(bookmarkKey(file, language), NO_BOOKMARK)
 
     fun saveBookmark(stotra: StotraId, language: StotraLanguage, offset: Int) {
-        prefs.edit().putInt(bookmarkKey(stotra, language), offset.coerceAtLeast(0)).commit()
+        saveBookmark(stotra.file, language, offset)
     }
 
-    fun scrollOffset(stotra: StotraId, language: StotraLanguage): Int =
-        prefs.getInt(scrollKey(stotra, language), 0).coerceAtLeast(0)
+    fun saveBookmark(file: String, language: StotraLanguage, offset: Int) {
+        prefs.edit().putInt(bookmarkKey(file, language), offset.coerceAtLeast(0)).commit()
+    }
+
+    fun scrollOffset(stotra: StotraId, language: StotraLanguage): Int = scrollOffset(stotra.file, language)
+
+    fun scrollOffset(file: String, language: StotraLanguage): Int =
+        prefs.getInt(scrollKey(file, language), 0).coerceAtLeast(0)
 
     fun saveScroll(stotra: StotraId, language: StotraLanguage, offset: Int) {
-        prefs.edit().putInt(scrollKey(stotra, language), offset.coerceAtLeast(0)).apply()
+        saveScroll(stotra.file, language, offset)
+    }
+
+    fun saveScroll(file: String, language: StotraLanguage, offset: Int) {
+        prefs.edit().putInt(scrollKey(file, language), offset.coerceAtLeast(0)).apply()
     }
 
     fun listScroll(): Int = prefs.getInt(LIST_SCROLL, 0).coerceAtLeast(0)
@@ -76,14 +88,14 @@ class StotraLanguageStore(context: Context) {
     private fun read(): StotraLanguage =
         if (prefs.getString(KEY, TELUGU) == ENGLISH) StotraLanguage.ENGLISH else StotraLanguage.TELUGU
 
-    private fun scrollKey(stotra: StotraId, language: StotraLanguage): String {
+    private fun scrollKey(file: String, language: StotraLanguage): String {
         val suffix = if (language == StotraLanguage.ENGLISH) ENGLISH else TELUGU
-        return "stotra_scroll_${stotra.file}_$suffix"
+        return "stotra_scroll_${file}_$suffix"
     }
 
-    private fun bookmarkKey(stotra: StotraId, language: StotraLanguage): String {
+    private fun bookmarkKey(file: String, language: StotraLanguage): String {
         val suffix = if (language == StotraLanguage.ENGLISH) ENGLISH else TELUGU
-        return "stotra_bookmark_${stotra.file}_$suffix"
+        return "stotra_bookmark_${file}_$suffix"
     }
 
     companion object {

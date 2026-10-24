@@ -20,6 +20,7 @@ import com.pradarshana.app.ui.history.SessionDetailRoute
 import com.pradarshana.app.ui.home.HomeRoute
 import com.pradarshana.app.ui.settings.SettingsRoute
 import com.pradarshana.app.ui.start.StartRoute
+import com.pradarshana.app.ui.stotra.StotraEditorRoute
 import com.pradarshana.app.ui.stotra.StotraListRoute
 import com.pradarshana.app.ui.stotra.StotraReaderRoute
 import com.pradarshana.core.data.SessionRepository
@@ -34,6 +35,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val ASK = "ask"
     const val STOTRAS = "stotras"
+    const val STOTRA_EDIT = "stotra-edit"
     const val STOTRA = "stotras/{id}"
 
     fun counter(id: String) = "counter/$id"
@@ -115,7 +117,18 @@ fun PradarshanaNavHost(
         composable(Routes.STOTRAS) {
             StotraListRoute(
                 onBack = { navController.popBackStack() },
-                onOpen = { navController.navigate(Routes.stotra(it.file)) },
+                onOpen = { navController.navigate(Routes.stotra(it)) },
+                onAdd = { navController.navigate(Routes.STOTRA_EDIT) },
+            )
+        }
+        composable(Routes.STOTRA_EDIT) {
+            StotraEditorRoute(
+                onBack = { navController.popBackStack() },
+                onSaved = { id ->
+                    navController.navigate(Routes.stotra(id)) {
+                        popUpTo(Routes.STOTRA_EDIT) { inclusive = true }
+                    }
+                },
             )
         }
         composable(Routes.STOTRA, arguments = idArg) { entry ->

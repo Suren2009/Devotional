@@ -1,6 +1,7 @@
 package com.pradarshana.app.ui.start
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -23,7 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -39,8 +42,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
@@ -55,7 +61,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.ui.appViewModel
-import com.pradarshana.app.ui.stotra.StotraId
 import com.pradarshana.core.data.CountFeedbackPreferences
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
@@ -296,6 +301,8 @@ fun StartScreen(
     onTempleChange: (String?) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
+    val density = LocalDensity.current
+    var countsHeight by remember { mutableStateOf(0.dp) }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
 
     Scaffold(
@@ -312,11 +319,12 @@ fun StartScreen(
             )
         },
     ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .imePadding()
+                .padding(bottom = countsHeight)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         ) {
@@ -452,15 +460,6 @@ fun StartScreen(
                         .fillMaxWidth()
                         .testTag("mantra_input"),
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StotraId.entries.forEach { stotra ->
-                        SuggestionChip(
-                            onClick = { onMantraChange(stotra.titleEn) },
-                            label = { Text(stotra.titleEn) },
-                            modifier = Modifier.testTag("mantra_${stotra.file}"),
-                        )
-                    }
-                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     if (!malaDrag) {
@@ -506,19 +505,6 @@ fun StartScreen(
                     .focusRequester(focusRequester)
                     .testTag("target_input"),
             )
-            Spacer(Modifier.height(8.dp))
-            Text("Common counts", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                counts.forEach { preset ->
-                    SuggestionChip(
-                        onClick = { onInputChange(preset.toString()) },
-                        label = { Text(preset.toString()) },
-                        modifier = Modifier
-                            .semantics { contentDescription = "$preset ${kind.unit}" }
-                            .testTag("count_$preset"),
-                    )
-                }
-            }
             if (ongoing != null) {
                 Spacer(Modifier.height(12.dp))
                 Text(
@@ -543,6 +529,31 @@ fun StartScreen(
             ) {
                 Text("Start", style = MaterialTheme.typography.labelLarge)
             }
+        }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
+                .onSizeChanged { countsHeight = with(density) { it.height.toDp() } },
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(4.dp))
+                Text("Common counts", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    counts.forEach { preset ->
+                        SuggestionChip(
+                            onClick = { onInputChange(preset.toString()) },
+                            label = { Text(preset.toString()) },
+                            modifier = Modifier
+                                .semantics { contentDescription = "$preset ${kind.unit}" }
+                                .testTag("count_$preset"),
+                        )
+                    }
+                }
+            }
+        }
         }
     }
 }

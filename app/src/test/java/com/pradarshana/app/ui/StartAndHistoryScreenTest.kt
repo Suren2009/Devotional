@@ -149,6 +149,8 @@ class StartAndHistoryScreenTest {
         assertEquals(listOf(54, 3, 9, 18, 108), vm.counts)
         compose.onNodeWithText("Meenakshi").assertExists()
         compose.onNodeWithTag("count_54").assertExists()
+        compose.onNodeWithTag("mantra_input").assertExists()
+        compose.onNodeWithTag("mantra_vishnu").assertDoesNotExist()
     }
 
     @Test

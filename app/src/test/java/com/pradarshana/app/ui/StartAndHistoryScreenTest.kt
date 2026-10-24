@@ -17,6 +17,7 @@ import com.pradarshana.app.ui.start.StartViewModel
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.core.data.SessionRepository
 import com.pradarshana.core.data.db.PradarshanaDatabase
+import com.pradarshana.core.model.MalaSide
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
@@ -271,5 +272,45 @@ class StartAndHistoryScreenTest {
         compose.onNodeWithTag("kind_CHANTING").performClick()
         compose.onNodeWithTag("count_mode_manual").assertDoesNotExist()
         compose.onNodeWithTag("count_mode_auto").assertDoesNotExist()
+    }
+
+    @Test
+    fun chantingChoosesPlusOrAMalaDragAndPradarshanaDoesNot() {
+        var mala by mutableStateOf(false)
+        var side by mutableStateOf(MalaSide.RIGHT)
+        var kind by mutableStateOf(SessionKind.PRADARSHANA)
+        compose.setContent {
+            PradarshanaTheme {
+                StartScreen(
+                    input = "",
+                    error = null,
+                    ongoing = null,
+                    onInputChange = {},
+                    onStart = {},
+                    onBack = {},
+                    kind = kind,
+                    onKindChange = { kind = it },
+                    malaDrag = mala,
+                    onMalaDragChange = { mala = it },
+                    malaSide = side,
+                    onMalaSideChange = { side = it },
+                )
+            }
+        }
+        compose.onNodeWithTag("mala_mode_plus").assertDoesNotExist()
+        compose.onNodeWithTag("mala_mode_drag").assertDoesNotExist()
+        compose.onNodeWithTag("kind_CHANTING").performClick()
+        compose.onNodeWithTag("mala_mode_plus").assertExists()
+        compose.onNodeWithText("Tap + for each name. This is the usual counting screen.").assertExists()
+        compose.onNodeWithTag("mala_side_left").assertDoesNotExist()
+        compose.onNodeWithTag("mala_mode_drag").performClick()
+        assertEquals(true, mala)
+        compose.onNodeWithTag("mala_side_right").assertExists()
+        compose.onNodeWithText("Drag down the strip on the right to count one name, then lift.").assertExists()
+        compose.onNodeWithTag("mala_side_left").performClick()
+        assertEquals(MalaSide.LEFT, side)
+        compose.onNodeWithTag("kind_PRADARSHANA").performClick()
+        compose.onNodeWithTag("mala_mode_drag").assertDoesNotExist()
+        compose.onNodeWithTag("count_mode_manual").assertExists()
     }
 }

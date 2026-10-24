@@ -29,6 +29,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -54,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pradarshana.app.PradarshanaApp
 import com.pradarshana.app.ui.theme.ThemeMode
 import com.pradarshana.core.model.AutoCountDistances
+import com.pradarshana.core.model.MalaSide
 
 @Composable
 fun SettingsRoute(onBack: () -> Unit) {
@@ -64,6 +68,8 @@ fun SettingsRoute(onBack: () -> Unit) {
     val autoCount by app.container.countFeedback.autoCount.collectAsStateWithLifecycle()
     val awayMeters by app.container.countFeedback.awayMeters.collectAsStateWithLifecycle()
     val returnMeters by app.container.countFeedback.returnMeters.collectAsStateWithLifecycle()
+    val malaDrag by app.container.countFeedback.malaDrag.collectAsStateWithLifecycle()
+    val malaSide by app.container.countFeedback.malaSide.collectAsStateWithLifecycle()
     SettingsScreen(
         mode = mode,
         onMode = app.themeStore::set,
@@ -76,6 +82,10 @@ fun SettingsRoute(onBack: () -> Unit) {
         awayMeters = awayMeters,
         returnMeters = returnMeters,
         onDistances = app.container.countFeedback::setDistances,
+        malaDrag = malaDrag,
+        onMalaDrag = app.container.countFeedback::setMalaDrag,
+        malaSide = malaSide,
+        onMalaSide = app.container.countFeedback::setMalaSide,
         onBack = onBack,
     )
 }
@@ -95,6 +105,10 @@ fun SettingsScreen(
     awayMeters: Int = AutoCountDistances.DEFAULT_AWAY_METERS,
     returnMeters: Int = AutoCountDistances.DEFAULT_RETURN_METERS,
     onDistances: (Int, Int) -> Unit = { _, _ -> },
+    malaDrag: Boolean = false,
+    onMalaDrag: (Boolean) -> Unit = {},
+    malaSide: MalaSide = MalaSide.RIGHT,
+    onMalaSide: (MalaSide) -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -199,7 +213,7 @@ fun SettingsScreen(
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text("Darken after two counts", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Turns the screen black except the plus button. Double-tap elsewhere to bring the count back.",
+                        "Turns the screen black except the plus button, or the mala strip when drag counting is on. Double-tap elsewhere to bring the count back.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -232,6 +246,60 @@ fun SettingsScreen(
             }
             if (autoCount) {
                 DistanceFields(awayMeters, returnMeters, onDistances)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 72.dp)
+                    .clickable(role = Role.Switch) { onMalaDrag(!malaDrag) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("mala_drag"),
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Count chanting by dragging down", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (malaDrag) {
+                            "On. Drag down the strip to count one name. The start screen can also choose this."
+                        } else {
+                            "Off. Tap + while chanting. The start screen can also choose this."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = malaDrag, onCheckedChange = onMalaDrag)
+            }
+            if (malaDrag) {
+                Text(
+                    "Mala strip",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                SingleChoiceSegmentedButtonRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                ) {
+                    SegmentedButton(
+                        selected = malaSide == MalaSide.LEFT,
+                        onClick = { onMalaSide(MalaSide.LEFT) },
+                        shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        modifier = Modifier.testTag("mala_side_left"),
+                    ) {
+                        Text("Left")
+                    }
+                    SegmentedButton(
+                        selected = malaSide == MalaSide.RIGHT,
+                        onClick = { onMalaSide(MalaSide.RIGHT) },
+                        shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        modifier = Modifier.testTag("mala_side_right"),
+                    ) {
+                        Text("Right")
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

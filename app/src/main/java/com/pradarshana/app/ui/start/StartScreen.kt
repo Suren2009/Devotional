@@ -64,6 +64,7 @@ import com.pradarshana.core.data.location.LocationCapture
 import com.pradarshana.core.data.location.hasLocationPermission
 import com.pradarshana.core.model.CommonCounts
 import com.pradarshana.core.model.CounterRules
+import com.pradarshana.core.model.MalaSide
 import com.pradarshana.core.model.SessionDetails
 import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.CounterRules.TargetValidation
@@ -163,6 +164,12 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
     val savedAutomatic = if (feedback == null) false else SavedAutomaticCount(feedback)
     var chosenAutomatic by remember { mutableStateOf<Boolean?>(null) }
     val automatic = chosenAutomatic ?: savedAutomatic
+    val savedMala = if (feedback == null) false else SavedMalaDrag(feedback)
+    val savedSide = if (feedback == null) MalaSide.RIGHT else SavedMalaSide(feedback)
+    var chosenMala by remember { mutableStateOf<Boolean?>(null) }
+    var chosenSide by remember { mutableStateOf<MalaSide?>(null) }
+    val malaDrag = chosenMala ?: savedMala
+    val malaSide = chosenSide ?: savedSide
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.start(granted || context.hasLocationPermission())
     }
@@ -179,8 +186,16 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
         onInputChange = vm::onInputChange,
         automatic = automatic,
         onAutomaticChange = { chosenAutomatic = it },
+        malaDrag = malaDrag,
+        onMalaDragChange = { chosenMala = it },
+        malaSide = malaSide,
+        onMalaSideChange = { chosenSide = it },
         onStart = {
             if (vm.kind == SessionKind.PRADARSHANA) feedback?.setAutoCount(automatic)
+            if (vm.kind == SessionKind.CHANTING) {
+                feedback?.setMalaDrag(malaDrag)
+                feedback?.setMalaSide(malaSide)
+            }
             if (context.hasLocationPermission()) vm.start(captureLocation = true)
             else permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         },
@@ -192,6 +207,18 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
 private fun SavedAutomaticCount(feedback: CountFeedbackPreferences): Boolean {
     val enabled by feedback.autoCount.collectAsStateWithLifecycle()
     return enabled
+}
+
+@Composable
+private fun SavedMalaDrag(feedback: CountFeedbackPreferences): Boolean {
+    val enabled by feedback.malaDrag.collectAsStateWithLifecycle()
+    return enabled
+}
+
+@Composable
+private fun SavedMalaSide(feedback: CountFeedbackPreferences): MalaSide {
+    val side by feedback.malaSide.collectAsStateWithLifecycle()
+    return side
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -210,6 +237,10 @@ fun StartScreen(
     onKindChange: (SessionKind) -> Unit = {},
     automatic: Boolean = false,
     onAutomaticChange: (Boolean) -> Unit = {},
+    malaDrag: Boolean = false,
+    onMalaDragChange: (Boolean) -> Unit = {},
+    malaSide: MalaSide = MalaSide.RIGHT,
+    onMalaSideChange: (MalaSide) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -281,6 +312,62 @@ fun StartScreen(
                         "A round is counted when you return to the start. The screen stays on and shows the count."
                     } else {
                         "Tap + for each round. This is the usual counting screen."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (kind == SessionKind.CHANTING) {
+                Spacer(Modifier.height(16.dp))
+                Text("Count each name", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !malaDrag,
+                        onClick = { onMalaDragChange(false) },
+                        shape = SegmentedButtonDefaults.itemShape(0, 2),
+                        modifier = Modifier.testTag("mala_mode_plus"),
+                    ) {
+                        Text("Plus")
+                    }
+                    SegmentedButton(
+                        selected = malaDrag,
+                        onClick = { onMalaDragChange(true) },
+                        shape = SegmentedButtonDefaults.itemShape(1, 2),
+                        modifier = Modifier.testTag("mala_mode_drag"),
+                    ) {
+                        Text("Drag down")
+                    }
+                }
+                if (malaDrag) {
+                    Spacer(Modifier.height(8.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = malaSide == MalaSide.LEFT,
+                            onClick = { onMalaSideChange(MalaSide.LEFT) },
+                            shape = SegmentedButtonDefaults.itemShape(0, 2),
+                            modifier = Modifier.testTag("mala_side_left"),
+                        ) {
+                            Text("Left")
+                        }
+                        SegmentedButton(
+                            selected = malaSide == MalaSide.RIGHT,
+                            onClick = { onMalaSideChange(MalaSide.RIGHT) },
+                            shape = SegmentedButtonDefaults.itemShape(1, 2),
+                            modifier = Modifier.testTag("mala_side_right"),
+                        ) {
+                            Text("Right")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (!malaDrag) {
+                        "Tap + for each name. This is the usual counting screen."
+                    } else if (malaSide == MalaSide.LEFT) {
+                        "Drag down the strip on the left to count one name, then lift."
+                    } else {
+                        "Drag down the strip on the right to count one name, then lift."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

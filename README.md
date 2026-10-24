@@ -8,7 +8,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 
 **Phone**
 - Home screen with *Start Pradarshana*, *Pradarshana History*, and a *Resume* card while a session is in progress.
-- A session is either a **Pradarshana** (rounds walked) or **Chanting** (names). The start screen offers both, and remembers the latest choice. A Pradarshana also offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start.
+- A session is either a **Pradarshana** (rounds walked) or **Chanting** (names). The start screen offers both, and remembers the latest choice. A Pradarshana also offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start. Chanting also offers **Plus** or **Drag down**. Drag down counts one name when you slide down a strip on the left or right edge and lift.
 - Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
 - An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
@@ -25,7 +25,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   distance (default 20 meters). The screen shows how far you are from the start. Both distances are set in Settings.
   While automatic counting is on, the counting screen stays black and awake, and the round count is shown on the
   button. That button does not add a round. Double-tap elsewhere to reach Pause and End.
-  Chanting still uses **+**. The watch is unchanged.
+  Chanting can stay on **+**, or count by dragging down a strip on the chosen edge, like pulling one mala bead. One drag down and a lift adds one name. A long slide still adds one, and a short slip does not. The **+** button is hidden while drag counting is on. The choice is remembered in Settings and can also be made on the start screen for a chant. It starts off, on the right edge. After the screen dims, the strip still counts. The watch keeps **+**.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
 - **Stotras** on the phone: Vishnu Sahasranama, Lalitha Sahasranama, Govinda Namalu, Anjaneya Dandakam, Hanuman Chalisa, Lakshmi Ashtottaram and Maha Lakshmi Ashtakam. Each page has Telugu and English. Telugu is used until English is chosen, and that choice is kept. A scrollbar shows the place in a long page, that place is kept when you leave and come back, and a small button returns to the start of the page.
 - **Ask Baba** on the phone. Think of one question, enter a number from 1 to 720, and read original guidance in English and Telugu. A Sai Baba picture is chosen from five, with Faith and Preserve moving beside it.
@@ -33,7 +33,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
   History is never deleted automatically.
 - Settings for a light theme, a dark theme, or the phone’s system theme, in a saffron, cream and muted gold palette.
-  Counting settings include tap vibration, darken after two counts, and automatic Pradarshana counting with its two distances.
+  Counting settings include tap vibration, darken after two counts, automatic Pradarshana counting with its two distances, and chanting by a downward mala drag on the left or right edge.
 
 **Wear OS watch**
 - Home: app name, *Start Pradarshana*, and *Resume* when a session exists.

@@ -4,22 +4,29 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.WindowManager
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -41,17 +48,21 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -79,6 +90,8 @@ import com.pradarshana.core.data.presentation.CounterUiState
 import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.components.ProgressRing
 import com.pradarshana.app.ui.theme.CounterNumberStyle
+import com.pradarshana.core.model.MalaDrag
+import com.pradarshana.core.model.MalaSide
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionStatus
@@ -126,6 +139,18 @@ fun CounterRoute(
                 val enabled by feedback.autoCount.collectAsStateWithLifecycle()
                 enabled
             }
+            val malaDrag = if (feedback == null || s.session.kind != SessionKind.CHANTING) {
+                false
+            } else {
+                val enabled by feedback.malaDrag.collectAsStateWithLifecycle()
+                enabled
+            }
+            val malaSide = if (feedback == null) {
+                MalaSide.RIGHT
+            } else {
+                val side by feedback.malaSide.collectAsStateWithLifecycle()
+                side
+            }
             AutoCountHost(s.session)
             CounterScreen(
                 session = s.session,
@@ -135,6 +160,8 @@ fun CounterRoute(
                 onBack = onBack,
                 batterySaverEnabled = batterySaverEnabled,
                 autoCount = autoCount,
+                malaDrag = malaDrag,
+                malaSide = malaSide,
             )
         }
     }
@@ -150,8 +177,11 @@ fun CounterScreen(
     onBack: () -> Unit,
     batterySaverEnabled: Boolean = true,
     autoCount: Boolean = false,
+    malaDrag: Boolean = false,
+    malaSide: MalaSide = MalaSide.RIGHT,
 ) {
     val automatic = autoCount && session.kind == SessionKind.PRADARSHANA
+    val mala = malaDrag && session.kind == SessionKind.CHANTING
     val autoStatus by AutoCountService.progress.collectAsStateWithLifecycle()
     KeepScreenOn(automatic || session.status == SessionStatus.ACTIVE)
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
@@ -194,6 +224,8 @@ fun CounterScreen(
             statusText = if (automatic) autoStatus else null,
             onPlus = if (automatic) ({}) else ::onPlus,
             onWake = ::wake,
+            mala = mala,
+            malaSide = malaSide,
         )
         return
     }
@@ -212,11 +244,16 @@ fun CounterScreen(
             )
         },
     ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .padding(
+                    start = if (mala && malaSide == MalaSide.LEFT) 88.dp else 24.dp,
+                    end = if (mala && malaSide == MalaSide.RIGHT) 88.dp else 24.dp,
+                    top = 8.dp,
+                    bottom = 8.dp,
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SessionMark(session.kind, size = 72.dp)
@@ -284,7 +321,7 @@ fun CounterScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.testTag("auto_count_status"),
                 )
-            } else {
+            } else if (!mala) {
                 Button(
                     onClick = ::onPlus,
                     enabled = session.canIncrement,
@@ -300,6 +337,14 @@ fun CounterScreen(
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(72.dp))
                 }
+            } else {
+                Text(
+                    "Drag down the strip to count one name",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("mala_hint"),
+                )
             }
             Spacer(Modifier.height(20.dp))
 
@@ -327,6 +372,17 @@ fun CounterScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
+        }
+        if (mala) {
+            MalaStrip(
+                enabled = session.canIncrement,
+                onCount = ::onPlus,
+                onBlack = false,
+                modifier = Modifier.align(
+                    if (malaSide == MalaSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd,
+                ),
+            )
+        }
         }
     }
 
@@ -365,6 +421,8 @@ private fun BlackCountingScreen(
     onWake: () -> Unit,
     countLabel: String? = null,
     statusText: String? = null,
+    mala: Boolean = false,
+    malaSide: MalaSide = MalaSide.RIGHT,
 ) {
     val view = LocalView.current
     DisposableEffect(view) {
@@ -387,10 +445,25 @@ private fun BlackCountingScreen(
             .background(Color.Black)
             .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onWake() }) }
             .testTag("battery_saver")
-            .semantics { contentDescription = "Screen darkened to save battery. Double tap outside the plus button to show the count." },
+            .semantics {
+                contentDescription = if (mala) {
+                    "Screen darkened to save battery. Double tap outside the mala strip to show the count."
+                } else {
+                    "Screen darkened to save battery. Double tap outside the plus button to show the count."
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
-        if (countLabel == null) {
+        if (mala) {
+            MalaStrip(
+                enabled = enabled,
+                onCount = onPlus,
+                onBlack = true,
+                modifier = Modifier.align(
+                    if (malaSide == MalaSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd,
+                ),
+            )
+        } else if (countLabel == null) {
             Button(
                 onClick = onPlus,
                 enabled = enabled,
@@ -419,6 +492,79 @@ private fun BlackCountingScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MalaStrip(
+    enabled: Boolean,
+    onCount: () -> Unit,
+    onBlack: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val thresholdPx = with(LocalDensity.current) { MalaDrag.MIN_DOWNWARD_DP.dp.toPx() }
+    var fraction by remember { mutableFloatStateOf(0.08f) }
+    val beadColor = if (onBlack) Color(0xFFE07B17) else MaterialTheme.colorScheme.primary
+    val trackColor = if (onBlack) Color.White.copy(alpha = 0.22f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    BoxWithConstraints(
+        modifier
+            .width(80.dp)
+            .fillMaxHeight()
+            .testTag("mala_strip")
+            .semantics { contentDescription = "Drag down to count one name" }
+            .pointerInput(enabled, thresholdPx) {
+                if (!enabled) return@pointerInput
+                var downward = 0f
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        downward = 0f
+                        fraction = (offset.y / size.height).coerceIn(0f, 1f)
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        if (dragAmount.y > 0f) downward += dragAmount.y
+                        fraction = (fraction + dragAmount.y / size.height).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = {
+                        if (MalaDrag.counts(downward, thresholdPx)) onCount()
+                        downward = 0f
+                        fraction = 0.08f
+                    },
+                    onDragCancel = {
+                        downward = 0f
+                        fraction = 0.08f
+                    },
+                )
+            },
+    ) {
+        val bead = 40.dp
+        val travel = (maxHeight - bead).coerceAtLeast(0.dp)
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .width(18.dp)
+                .fillMaxHeight()
+                .padding(vertical = 16.dp)
+                .background(trackColor, RoundedCornerShape(12.dp)),
+        )
+        Canvas(Modifier.fillMaxSize()) {
+            val radius = 5.dp.toPx()
+            val gap = 22.dp.toPx()
+            var y = radius + 12.dp.toPx()
+            val cx = size.width / 2f
+            while (y < size.height - radius) {
+                drawCircle(color = trackColor, radius = radius, center = Offset(cx, y))
+                y += gap
+            }
+        }
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = travel * fraction)
+                .size(bead)
+                .background(beadColor, CircleShape)
+                .testTag("mala_bead"),
+        )
     }
 }
 

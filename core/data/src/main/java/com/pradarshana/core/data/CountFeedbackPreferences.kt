@@ -2,11 +2,12 @@ package com.pradarshana.core.data
 
 import android.content.Context
 import com.pradarshana.core.model.AutoCountDistances
+import com.pradarshana.core.model.MalaSide
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Counting-screen options. Vibration and darkening stay on until turned off. Automatic counting stays off. */
+/** Counting-screen options. Vibration and darkening stay on until turned off. Automatic counting and mala drag stay off. */
 class CountFeedbackPreferences(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val _vibrateOnCount = MutableStateFlow(prefs.getBoolean(KEY_VIBRATE_ON_COUNT, true))
@@ -19,6 +20,10 @@ class CountFeedbackPreferences(context: Context) {
     val awayMeters: StateFlow<Int> = _awayMeters.asStateFlow()
     private val _returnMeters = MutableStateFlow(prefs.getInt(KEY_RETURN_METERS, AutoCountDistances.DEFAULT_RETURN_METERS))
     val returnMeters: StateFlow<Int> = _returnMeters.asStateFlow()
+    private val _malaDrag = MutableStateFlow(prefs.getBoolean(KEY_MALA_DRAG, false))
+    val malaDrag: StateFlow<Boolean> = _malaDrag.asStateFlow()
+    private val _malaSide = MutableStateFlow(MalaSide.fromStored(prefs.getString(KEY_MALA_SIDE, null)))
+    val malaSide: StateFlow<MalaSide> = _malaSide.asStateFlow()
 
     fun setVibrateOnCount(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_VIBRATE_ON_COUNT, enabled).commit()
@@ -43,6 +48,16 @@ class CountFeedbackPreferences(context: Context) {
         _returnMeters.value = returnMeters
     }
 
+    fun setMalaDrag(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_MALA_DRAG, enabled).commit()
+        _malaDrag.value = enabled
+    }
+
+    fun setMalaSide(side: MalaSide) {
+        prefs.edit().putString(KEY_MALA_SIDE, side.stored).commit()
+        _malaSide.value = side
+    }
+
     companion object {
         private const val PREFS = "pradarshana_settings"
         const val KEY_VIBRATE_ON_COUNT = "vibrate_on_count"
@@ -50,5 +65,7 @@ class CountFeedbackPreferences(context: Context) {
         const val KEY_AUTO_COUNT = "auto_count"
         const val KEY_AWAY_METERS = "auto_count_away_meters"
         const val KEY_RETURN_METERS = "auto_count_return_meters"
+        const val KEY_MALA_DRAG = "mala_drag"
+        const val KEY_MALA_SIDE = "mala_drag_side"
     }
 }

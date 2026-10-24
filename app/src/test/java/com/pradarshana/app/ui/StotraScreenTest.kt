@@ -14,9 +14,11 @@ import com.pradarshana.app.ui.home.HomeScreen
 import com.pradarshana.app.ui.stotra.StotraId
 import com.pradarshana.app.ui.stotra.StotraLanguage
 import com.pradarshana.app.ui.stotra.StotraLanguageStore
+import com.pradarshana.app.ui.stotra.StotraTextSize
 import com.pradarshana.app.ui.stotra.StotraListScreen
 import com.pradarshana.app.ui.stotra.StotraReaderScreen
 import com.pradarshana.app.ui.stotra.loadStotra
+import com.pradarshana.app.ui.stotra.stotraMatchStarts
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -120,5 +122,20 @@ class StotraScreenTest {
         compose.waitUntil(timeoutMillis = 5_000) {
             saved == 0 && compose.onAllNodesWithTag("stotra_to_start").fetchSemanticsNodes().isEmpty()
         }
+    }
+
+    @Test
+    fun searchFindsAVerseAndABookmarkIsRemembered() {
+        assertEquals(listOf(3), stotraMatchStarts("Om Namah Shivaya Om", "Namah"))
+        assertEquals(emptyList<Int>(), stotraMatchStarts("Om", "  "))
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE).edit().clear().commit()
+        val store = StotraLanguageStore(context)
+        assertEquals(StotraTextSize.MEDIUM, store.textSize.value)
+        store.setTextSize(StotraTextSize.LARGE)
+        assertEquals(StotraTextSize.LARGE, StotraLanguageStore(context).textSize.value)
+        assertEquals(StotraLanguageStore.NO_BOOKMARK, store.bookmark(StotraId.VISHNU, StotraLanguage.ENGLISH))
+        store.saveBookmark(StotraId.VISHNU, StotraLanguage.ENGLISH, 40)
+        assertEquals(40, StotraLanguageStore(context).bookmark(StotraId.VISHNU, StotraLanguage.ENGLISH))
     }
 }

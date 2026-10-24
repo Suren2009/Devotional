@@ -206,4 +206,39 @@ class SettingsScreenTest {
         assertTrue(stored.malaDrag.value)
         assertEquals(MalaSide.LEFT, stored.malaSide.value)
     }
+
+    @Test
+    fun extraCountingOptionsStayOffUntilTurnedOn() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.getSharedPreferences("pradarshana_settings", Context.MODE_PRIVATE).edit().clear().commit()
+        val prefs = CountFeedbackPreferences(context)
+        assertFalse(prefs.undoLast.value)
+        assertFalse(prefs.volumeCount.value)
+        assertFalse(prefs.guruBell.value)
+        assertFalse(prefs.showTotals.value)
+        assertFalse(prefs.crownCount.value)
+        assertTrue(prefs.temples.value.isEmpty())
+        var undo by mutableStateOf(false)
+        compose.setContent {
+            PradarshanaTheme {
+                SettingsScreen(
+                    mode = ThemeMode.SYSTEM,
+                    onMode = {},
+                    onBack = {},
+                    undoLast = undo,
+                    onUndoLast = { undo = it },
+                )
+            }
+        }
+        compose.onNodeWithTag("undo_last_count").performScrollTo().performClick()
+        assertTrue(undo)
+        compose.onNodeWithTag("volume_count").performScrollTo().assertExists()
+        compose.onNodeWithTag("guru_bell").performScrollTo().assertExists()
+        compose.onNodeWithTag("show_totals").performScrollTo().assertExists()
+        compose.onNodeWithTag("export_history").performScrollTo().assertExists()
+        compose.onNodeWithTag("stotra_text_medium").performScrollTo().assertExists()
+        assertTrue(prefs.saveTemple("Kapaleeshwarar", 13.03386, 80.27000))
+        assertEquals("Kapaleeshwarar", prefs.temples.value.single().name)
+        assertFalse(prefs.saveTemple(" ", 1.0, 2.0))
+    }
 }

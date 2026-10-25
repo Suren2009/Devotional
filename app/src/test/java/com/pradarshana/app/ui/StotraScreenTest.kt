@@ -180,4 +180,31 @@ class StotraScreenTest {
         compose.onNodeWithTag("save_stotra").performClick()
         assertEquals("Evening prayer" to "Om namah", saved)
     }
+
+    @Test
+    fun editorCanSaveAPhotoInsteadOfText() {
+        var saved by mutableStateOf<String?>(null)
+        var chosen by mutableStateOf(false)
+        compose.setContent {
+            PradarshanaTheme {
+                StotraEditorScreen(
+                    onBack = {},
+                    onSave = { _, _ -> },
+                    photoChosen = chosen,
+                    onPickPhoto = { chosen = true },
+                    onSavePhoto = { saved = it },
+                )
+            }
+        }
+        compose.onNodeWithTag("stotra_kind_image").performClick()
+        compose.onNodeWithText("One photo, kept on this phone.").assertExists()
+        compose.onNodeWithTag("stotra_body_input").assertDoesNotExist()
+        compose.onNodeWithTag("save_stotra").performClick()
+        compose.onNodeWithText("Enter a name and choose a photo.").assertExists()
+        compose.onNodeWithTag("stotra_title_input").performTextInput("Evening prayer")
+        compose.onNodeWithTag("stotra_pick_photo").performClick()
+        compose.onNodeWithTag("stotra_photo_chosen").assertExists()
+        compose.onNodeWithTag("save_stotra").performClick()
+        assertEquals("Evening prayer", saved)
+    }
 }

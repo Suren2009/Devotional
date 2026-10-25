@@ -1,24 +1,33 @@
 package com.pradarshana.app.ui.stotra
 
 import android.content.Context
+import android.graphics.Bitmap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import kotlin.random.Random
 
-/** A stotra the devotee typed and saved on this phone. */
-data class CustomStotra(val id: String, val title: String)
+enum class StotraKind { TEXT, IMAGE }
+
+/** A stotra saved on this phone. It is either typed text or one photo. */
+data class CustomStotra(
+    val id: String,
+    val title: String,
+    val kind: StotraKind = StotraKind.TEXT,
+)
 
 sealed class CustomStotraAdd {
     data class Saved(val id: String) : CustomStotraAdd()
     data object Blank : CustomStotraAdd()
     data object Full : CustomStotraAdd()
+    data object Unreadable : CustomStotraAdd()
 }
 
 /**
  * Included stotras stay in the app. Hiding one removes it from the list until the included
- * stotras are shown again. A stotra typed here is stored on this phone and can be deleted.
+ * stotras are shown again. A stotra saved here is text or one photo, and it can be deleted.
  */
 class CustomStotraStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -43,9 +52,38 @@ class CustomStotraStore(context: Context) {
         if (_entries.value.size >= MAX_COUNT) return CustomStotraAdd.Full
         val id = newId()
         File(directory, "$id.txt").writeText(cleanBody, Charsets.UTF_8)
-        val next = _entries.value + CustomStotra(id, cleanTitle)
+        val next = _entries.value + CustomStotra(id, cleanTitle, StotraKind.TEXT)
         writeEntries(next)
         return CustomStotraAdd.Saved(id)
+    }
+
+    /** Stores one photo, scaled down. A blank name is [CustomStotraAdd.Blank]. An unreadable file is [CustomStotraAdd.Unreadable]. */
+    fun addImage(title: String, source: File): CustomStotraAdd {
+        val cleanTitle = normalizeTitle(title)
+        if (cleanTitle.isEmpty()) return CustomStotraAdd.Blank
+        if (_entries.value.size >= MAX_COUNT) return CustomStotraAdd.Full
+        val id = newId()
+        val dest = File(directory, "$id.jpg")
+        val written = try {
+            writeStotraJpeg(source, dest)
+        } catch (cancelled: CancellationException) {
+            dest.delete()
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+        if (!written) {
+            dest.delete()
+            return CustomStotraAdd.Unreadable
+        }
+        writeEntries(_entries.value + CustomStotra(id, cleanTitle, StotraKind.IMAGE))
+        return CustomStotraAdd.Saved(id)
+    }
+
+    fun loadImage(id: String): Bitmap? {
+        val entry = entry(id)
+        if (entry == null || entry.kind != StotraKind.IMAGE || !isSafeId(id)) return null
+        return readStotraImage(File(directory, "$id.jpg"))
     }
 
     fun delete(id: String) {
@@ -57,6 +95,7 @@ class CustomStotraStore(context: Context) {
         }
         if (!isSafeId(id)) return
         File(directory, "$id.txt").delete()
+        File(directory, "$id.jpg").delete()
         writeEntries(_entries.value.filter { it.id != id })
     }
 
@@ -101,16 +140,23 @@ class CustomStotraStore(context: Context) {
             value.trim().replace(Regex("\\s+"), " ").take(MAX_TITLE)
 
         fun encode(entries: List<CustomStotra>): String =
-            entries.joinToString("\n") { "${it.id}\t${it.title}" }
+            entries.joinToString("\n") { entry ->
+                if (entry.kind == StotraKind.IMAGE) "${entry.id}\t${entry.title}\timage" else "${entry.id}\t${entry.title}"
+            }
 
         fun decode(raw: String?): List<CustomStotra> {
             if (raw.isNullOrBlank()) return emptyList()
             return raw.lineSequence().mapNotNull { line ->
                 val parts = line.split('\t')
-                if (parts.size != 2 || !isSafeId(parts[0])) return@mapNotNull null
+                if (parts.size !in 2..3 || !isSafeId(parts[0])) return@mapNotNull null
+                val kind = when (parts.getOrNull(2)) {
+                    null, "", "text" -> StotraKind.TEXT
+                    "image" -> StotraKind.IMAGE
+                    else -> return@mapNotNull null
+                }
                 val title = normalizeTitle(parts[1])
                 if (title.isEmpty() || StotraId.fromFile(parts[0]) != null) return@mapNotNull null
-                CustomStotra(parts[0], title)
+                CustomStotra(parts[0], title, kind)
             }.take(MAX_COUNT).toList()
         }
 

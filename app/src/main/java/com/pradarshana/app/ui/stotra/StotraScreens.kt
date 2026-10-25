@@ -1,8 +1,17 @@
 package com.pradarshana.app.ui.stotra
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -58,6 +69,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -69,11 +83,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -160,7 +177,7 @@ fun StotraListScreen(
                 custom.forEach { stotra ->
                     StotraListRow(
                         title = stotra.title,
-                        subtitle = "Saved on this phone",
+                        subtitle = if (stotra.kind == StotraKind.IMAGE) "Photo" else "Saved on this phone",
                         tag = "stotra_${stotra.id}",
                         onOpen = { onOpenCustom(stotra.id) },
                     )
@@ -268,7 +285,11 @@ private fun SavedStotraReader(file: String, onBack: () -> Unit, onDelete: () -> 
     val saved = remember { CustomStotraStore(context) }
     val entries by saved.entries.collectAsStateWithLifecycle()
     val entry = entries.firstOrNull { it.id == file }
-    if (entry == null) StotraMissing(onBack) else SavedStotraBody(entry, onBack, onDelete)
+    when {
+        entry == null -> StotraMissing(onBack)
+        entry.kind == StotraKind.IMAGE -> SavedStotraImage(entry, onBack, onDelete)
+        else -> SavedStotraBody(entry, onBack, onDelete)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -299,12 +320,59 @@ private fun SavedStotraBody(entry: CustomStotra, onBack: () -> Unit, onDelete: (
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StotraMissing(onBack: () -> Unit) {
+private fun SavedStotraImage(entry: CustomStotra, onBack: () -> Unit, onDelete: () -> Unit) {
+    val context = LocalContext.current
+    val saved = remember { CustomStotraStore(context) }
+    val store = remember { StotraLanguageStore(context) }
+    var image by remember(entry.id) { mutableStateOf<ImageBitmap?>(null) }
+    var failed by remember(entry.id) { mutableStateOf(false) }
+    LaunchedEffect(entry.id) {
+        val bitmap = withContext(Dispatchers.IO) { saved.loadImage(entry.id) }
+        if (bitmap == null) failed = true else image = bitmap.asImageBitmap()
+    }
+    val loaded = image
+    if (loaded != null) {
+        SavedStotraImagePage(entry, loaded, store, onBack, onDelete)
+    } else if (failed) {
+        StotraMissing(onBack, "This photo is not available.", title = entry.title)
+    } else {
+        StotraMissing(onBack, "Opening the photo.", title = entry.title)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SavedStotraImagePage(
+    entry: CustomStotra,
+    image: ImageBitmap,
+    store: StotraLanguageStore,
+    onBack: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var bookmark by remember(entry.id) { mutableIntStateOf(store.bookmark(entry.id, StotraLanguage.TELUGU)) }
+    StotraPhotoScreen(
+        title = entry.title,
+        image = image,
+        onBack = onBack,
+        initialScroll = store.scrollOffset(entry.id, StotraLanguage.TELUGU),
+        onScroll = { offset -> store.saveScroll(entry.id, StotraLanguage.TELUGU, offset) },
+        bookmark = bookmark,
+        onBookmark = { offset ->
+            store.saveBookmark(entry.id, StotraLanguage.TELUGU, offset)
+            bookmark = offset
+        },
+        onDelete = onDelete,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StotraMissing(onBack: () -> Unit, message: String = "This stotra is not available.", title: String = "Stotras") {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Stotras") },
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -315,7 +383,7 @@ private fun StotraMissing(onBack: () -> Unit) {
         },
     ) { padding ->
         Text(
-            "This stotra is not available.",
+            message,
             modifier = Modifier.padding(padding).padding(20.dp),
         )
     }
@@ -399,22 +467,156 @@ private fun SavedStotraReaderScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+internal fun StotraPhotoScreen(
+    title: String,
+    image: ImageBitmap,
+    onBack: () -> Unit,
+    initialScroll: Int = 0,
+    onScroll: (Int) -> Unit = {},
+    bookmark: Int = StotraLanguageStore.NO_BOOKMARK,
+    onBookmark: (Int) -> Unit = {},
+    onDelete: () -> Unit,
+) {
+    val scroll = rememberRestoredScroll(initialScroll, onScroll)
+    val horizontal = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var zoom by remember { mutableIntStateOf(0) }
+    val scale = PHOTO_ZOOM[zoom]
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                )
+            },
+        ) { padding ->
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                val imageWidth = maxWidth * scale
+                Box(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScrollbar(scroll, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))
+                            .horizontalScroll(horizontal)
+                            .verticalScroll(scroll),
+                    ) {
+                        Image(
+                            bitmap = image,
+                            contentDescription = title,
+                            contentScale = ContentScale.FillWidth,
+                            modifier = Modifier
+                                .width(imageWidth)
+                                .padding(end = 10.dp, bottom = 72.dp)
+                                .testTag("stotra_image"),
+                        )
+                    }
+                    if (scroll.value > 48) {
+                        StartOfPageButton(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 8.dp)) {
+                            scope.launch { scroll.animateScrollTo(0) }
+                        }
+                    }
+                }
+            }
+        }
+        StotraReaderTools(
+            Modifier.align(Alignment.TopEnd),
+            body = "",
+            scroll = scroll,
+            bookmark = bookmark,
+            onBookmark = onBookmark,
+            onDelete = onDelete,
+            photo = true,
+            canSearch = false,
+            onZoomIn = { if (zoom < PHOTO_ZOOM.lastIndex) zoom += 1 },
+            onZoomOut = { if (zoom > 0) zoom -= 1 },
+        )
+    }
+}
+
+private val PHOTO_ZOOM = floatArrayOf(1f, 1.5f, 2f, 3f)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun StotraEditorRoute(onBack: () -> Unit, onSaved: (String) -> Unit) {
     val context = LocalContext.current
     val store = remember { CustomStotraStore(context) }
+    val scope = rememberCoroutineScope()
     var message by remember { mutableStateOf<String?>(null) }
+    var photo by remember { mutableStateOf<File?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val dest = File(context.cacheDir, "stotra-pick.jpg")
+            val copied = withContext(Dispatchers.IO) { copyStotraPhoto(context, uri, dest) }
+            if (copied) {
+                photo = dest
+                message = null
+            } else {
+                dest.delete()
+                photo = null
+                message = "That photo could not be read. Choose another."
+            }
+        }
+    }
+    DisposableEffect(photo) {
+        onDispose { photo?.delete() }
+    }
     StotraEditorScreen(
         onBack = onBack,
         error = message,
+        photoChosen = photo != null,
+        onPickPhoto = {
+            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        },
         onSave = { title, text ->
             when (val result = store.add(title, text)) {
                 is CustomStotraAdd.Saved -> onSaved(result.id)
                 CustomStotraAdd.Blank -> message = "Enter a name and the stotra text."
                 CustomStotraAdd.Full -> message = "You can save up to ${CustomStotraStore.MAX_COUNT} stotras."
+                CustomStotraAdd.Unreadable -> message = "Enter a name and the stotra text."
+            }
+        },
+        onSavePhoto = { title ->
+            val file = photo
+            if (file != null && !saving) {
+            saving = true
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { store.addImage(title, file) }
+                saving = false
+                when (result) {
+                    is CustomStotraAdd.Saved -> {
+                        file.delete()
+                        photo = null
+                        onSaved(result.id)
+                    }
+                    CustomStotraAdd.Blank -> message = "Enter a name and choose a photo."
+                    CustomStotraAdd.Unreadable -> message = "That photo could not be read. Choose another."
+                    CustomStotraAdd.Full -> message = "You can save up to ${CustomStotraStore.MAX_COUNT} stotras."
+                }
+            }
             }
         },
     )
 }
+
+private fun copyStotraPhoto(context: android.content.Context, uri: Uri, dest: File): Boolean =
+    runCatching {
+        val input = context.contentResolver.openInputStream(uri) ?: return@runCatching false
+        input.use { stream -> dest.outputStream().use { stream.copyTo(it) } }
+        dest.length() > 0L
+    }.getOrDefault(false)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -422,9 +624,13 @@ fun StotraEditorScreen(
     onBack: () -> Unit,
     onSave: (String, String) -> Unit,
     error: String? = null,
+    photoChosen: Boolean = false,
+    onPickPhoto: () -> Unit = {},
+    onSavePhoto: (String) -> Unit = {},
 ) {
     var title by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("") }
+    var kind by remember { mutableStateOf(StotraKind.TEXT) }
     var localError by remember { mutableStateOf<String?>(null) }
     val shownError = localError ?: error
     Scaffold(
@@ -457,16 +663,71 @@ fun StotraEditorScreen(
                 modifier = Modifier.fillMaxWidth().testTag("stotra_title_input"),
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.take(CustomStotraStore.MAX_BODY) },
-                label = { Text("Stotra text") },
-                minLines = 8,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 220.dp)
-                    .testTag("stotra_body_input"),
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (kind == StotraKind.TEXT) {
+                    Button(
+                        onClick = {
+                            kind = StotraKind.TEXT
+                            localError = null
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("stotra_kind_text"),
+                    ) { Text("Text") }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            kind = StotraKind.TEXT
+                            localError = null
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("stotra_kind_text"),
+                    ) { Text("Text") }
+                }
+                if (kind == StotraKind.IMAGE) {
+                    Button(
+                        onClick = {
+                            kind = StotraKind.IMAGE
+                            localError = null
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("stotra_kind_image"),
+                    ) { Text("Photo") }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            kind = StotraKind.IMAGE
+                            localError = null
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("stotra_kind_image"),
+                    ) { Text("Photo") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (kind == StotraKind.IMAGE) "One photo, kept on this phone." else "Type the stotra. It can be searched.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(12.dp))
+            if (kind == StotraKind.TEXT) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(CustomStotraStore.MAX_BODY) },
+                    label = { Text("Stotra text") },
+                    minLines = 8,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 220.dp)
+                        .testTag("stotra_body_input"),
+                )
+            } else {
+                Button(
+                    onClick = onPickPhoto,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("stotra_pick_photo"),
+                ) { Text(if (photoChosen) "Choose a different photo" else "Choose a photo") }
+                if (photoChosen) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Photo chosen", modifier = Modifier.testTag("stotra_photo_chosen"))
+                }
+            }
             if (shownError != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(shownError, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("stotra_editor_error"))
@@ -474,7 +735,14 @@ fun StotraEditorScreen(
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = {
-                    if (title.isBlank() || text.isBlank()) {
+                    if (kind == StotraKind.IMAGE) {
+                        if (title.isBlank() || !photoChosen) {
+                            localError = "Enter a name and choose a photo."
+                        } else {
+                            localError = null
+                            onSavePhoto(title)
+                        }
+                    } else if (title.isBlank() || text.isBlank()) {
                         localError = "Enter a name and the stotra text."
                     } else {
                         localError = null
@@ -602,6 +870,10 @@ private fun StotraReaderTools(
     onBookmark: (Int) -> Unit,
     onDelete: (() -> Unit)? = null,
     savedOnThisPhone: Boolean = false,
+    photo: Boolean = false,
+    canSearch: Boolean = true,
+    onZoomIn: (() -> Unit)? = null,
+    onZoomOut: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
@@ -626,14 +898,36 @@ private fun StotraReaderTools(
                 Icon(Icons.Filled.MoreVert, contentDescription = "Menu")
             }
             DropdownMenu(expanded = toolsOpen, onDismissRequest = { toolsOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text("Search") },
-                    onClick = {
-                        toolsOpen = false
-                        searching = true
-                    },
-                    modifier = Modifier.testTag("stotra_search_toggle"),
-                )
+                if (canSearch) {
+                    DropdownMenuItem(
+                        text = { Text("Search") },
+                        onClick = {
+                            toolsOpen = false
+                            searching = true
+                        },
+                        modifier = Modifier.testTag("stotra_search_toggle"),
+                    )
+                }
+                if (onZoomIn != null) {
+                    DropdownMenuItem(
+                        text = { Text("Larger") },
+                        onClick = {
+                            toolsOpen = false
+                            onZoomIn()
+                        },
+                        modifier = Modifier.testTag("stotra_zoom_in"),
+                    )
+                }
+                if (onZoomOut != null) {
+                    DropdownMenuItem(
+                        text = { Text("Smaller") },
+                        onClick = {
+                            toolsOpen = false
+                            onZoomOut()
+                        },
+                        modifier = Modifier.testTag("stotra_zoom_out"),
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(if (bookmark >= 0) "Update bookmark" else "Bookmark this place") },
                     onClick = {
@@ -710,10 +1004,10 @@ private fun StotraReaderTools(
             title = { Text("Remove this stotra?") },
             text = {
                 Text(
-                    if (savedOnThisPhone) {
-                        "This deletes the text you saved."
-                    } else {
-                        "This removes it from the list. The included stotras can be shown again."
+                    when {
+                        photo -> "This deletes the photo you saved."
+                        savedOnThisPhone -> "This deletes the text you saved."
+                        else -> "This removes it from the list. The included stotras can be shown again."
                     },
                 )
             },

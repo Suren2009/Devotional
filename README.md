@@ -7,10 +7,10 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 ## Features
 
 **Phone**
-- Home screen with *Start Pradarshana*, *Pradarshana History*, and a *Resume* card while a session is in progress.
-- A session is either a **Pradarshana** (rounds walked) or **Chanting** (names). The start screen offers both, and remembers the latest choice. A Pradarshana also offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start.
-- Target entry with validation (must be a whole number from 1 to 100,000). Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once.
-- An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**.
+- Home is a grid of three items per row: **Start**, **Chanting**, **Stotras**, **Ask Baba**, and **Settings**. A session that is still going is a **Paused** or **Resume** item in that grid. **Pradarshana History** opens from Settings. Settings can also show how many counts were made today, this week and this month. That line stays hidden until it is turned on.
+- **Start** opens a walk around the temple. **Chanting** opens a chant of names. A walk offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start. A chant offers **Plus** or **Drag down**. Drag down counts one name when you slide down a strip on the left or right edge and lift.
+- Target entry with validation (must be a whole number from 1 to 100,000). A walk asks for **Target rounds**. A chant asks for **No. of times chanting**. Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once. Those counts stay along the top of the keyboard while a number is being entered.
+- An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**. A chant can also name a mantra by typing it. It is shown on the counting screen and in the session details. Leave it blank to hide it.
 - The place where the session started, when location is allowed. History and the session details show it, with a map preview and **Show on map**. Counting still works if location is declined.
 - Counting screen: the temple mandala for a Pradarshana, or a japa mala while chanting, with a large completed count. A walk is headed **Total rounds**. Chanting is headed **No. of times chanting**. Target, remaining, percentage and progress ring, a large **+** button,
   Pause/Resume, and End Session with a confirmation dialog. Each + can give a short 70 ms vibration
@@ -25,19 +25,23 @@ of completed sessions. No account, internet connection, ads or runtime permissio
   distance (default 20 meters). The screen shows how far you are from the start. Both distances are set in Settings.
   While automatic counting is on, the counting screen stays black and awake, and the round count is shown on the
   button. That button does not add a round. Double-tap elsewhere to reach Pause and End.
-  Chanting still uses **+**. The watch is unchanged.
+  Chanting can stay on **+**, or count by dragging down a strip on the chosen edge, like pulling one mala bead. One drag down and a lift adds one name. A long slide still adds one, and a short slip does not. The **+** button is hidden while drag counting is on. The choice is remembered in Settings and can also be made on the start screen for a chant. It starts off, on the right edge. After the screen dims, the strip still counts. The watch keeps **+**.
+  The large rudraksha shows the current name. Start and goal are the middle of the cord. For a target of 10 the places run 6, 7, 8, 9, 10, then the middle, then 1, 2, 3, 4, 5. The first half of any target steps down below the middle. The second half starts at the top and steps down to just above the middle. The bead follows the finger during a drag, then rests at that place.
+  Settings can turn on **Undo last count**. The counting screen then offers Undo, which takes back one count made on this phone. A finished session is left finished. The volume keys can also count, one press for one count, without changing the volume. Both stay off until they are turned on. **Guru bead vibration** adds a stronger pulse at halfway and at the end. It stays off, and the usual completion vibration is unchanged while it is off.
 - Automatic completion screen ("Pradarshana Completed!") with final count, target, total time and a gentle radiance animation. Total time runs from the start to the end and leaves out every pause.
-- **Stotras** on the phone: Vishnu Sahasranama, Lalitha Sahasranama, Govinda Namalu, Anjaneya Dandakam, Hanuman Chalisa, Lakshmi Ashtottaram and Maha Lakshmi Ashtakam. Each page has Telugu and English. Telugu is used until English is chosen, and that choice is kept. A scrollbar shows the place in a long page, that place is kept when you leave and come back, and a small button returns to the start of the page.
+- **Stotras** on the phone: Vishnu Sahasranama, Lalitha Sahasranama, Govinda Namalu, Anjaneya Dandakam, Hanuman Chalisa, Lakshmi Ashtottaram and Maha Lakshmi Ashtakam. Each included page has Telugu and English. Telugu is used until English is chosen, and that choice is kept. A scrollbar shows the place in a long page, that place is kept when you leave and come back, and a small button returns to the start of the page. The menu at the top right of a stotra has Search, Bookmark, and Delete. Search and a bookmark sit beside the remembered scroll place. Settings chooses Small, Medium or Large text. Medium is the size used until another size is chosen. A stotra added on this phone is either typed text or one photo. Text can be searched. A photo has no search; the menu can make it larger, and deleting it removes the photo. An included stotra stays the Telugu and English text and can be shown again.
 - **Ask Baba** on the phone. Think of one question, enter a number from 1 to 720, and read original guidance in English and Telugu. A Sai Baba picture is chosen from five, with Faith and Preserve moving beside it.
 - History, newest first, with a japa mala or the temple mandala, the session type, date/time, target, completed count, total time and status (Completed / Incomplete),
   a detail view per session, delete for one session, and *Clear history*. Both ask for confirmation.
-  History is never deleted automatically.
+  History is never deleted automatically. The list can be limited to walks or chants, and a title can be typed to narrow it. All is used until another choice is made. Settings can save a history file and bring that file back. A session that was deleted is not restored.
 - Settings for a light theme, a dark theme, or the phone’s system theme, in a saffron, cream and muted gold palette.
-  Counting settings include tap vibration, darken after two counts, and automatic Pradarshana counting with its two distances.
+  Counting settings include tap vibration, darken after two counts, automatic Pradarshana counting with its two distances, and chanting by a downward mala drag on the left or right edge.
+  Further choices stay off until turned on: undo, volume-button counting, guru-bead vibration, and home totals. Saved temples are optional named starting places for an automatic walk. Stotra text size is chosen here too. A history file can be saved or brought back in.
 
 **Wear OS watch**
-- Home: app name, *Start Pradarshana*, and *Resume* when a session exists.
+- Home: app name, *Start Pradarshana*, and *Resume* when a session exists. **Crown counts** stays off until it is turned on. While it is on, one turn of the crown on the counting screen adds one count.
 - A **Start Pradarshana** tile for the watch face. Add it from the tiles list (press and hold the watch face, then tiles). One tap resumes the session already in progress, or starts a Pradarshana using the latest walk's target and title. The first one uses 108 rounds. The tile does not ask for a place; start from the app when the location should be saved.
+- A **Today's count** complication for the watch face. Add it from the watch face complications. It shows how many counts were recorded today and opens the app when tapped.
 - Choice of Pradarshana or Chanting, then the same common counts as the phone, plus a custom value (on-screen stepper or rotating crown).
 - Counting screen for round displays: large count under **Total rounds**, or **No. of times chanting** for a chant, target and remaining, progress arc, a large **+** button and
   Pause/Resume. The watch screen stays on for the whole session, including while paused and while the display is black.
@@ -74,7 +78,8 @@ Each device has its own Room database. Nothing is shared implicitly; all exchang
 - **Per-device counters (G-Counter CRDT).** A session's count is not stored as one number that devices overwrite.
   Each device keeps its own count (`session_device_counts`), and every local tap is logged with a unique operation
   id `sessionId:deviceId:sequence` (`counter_operations`). The total is the sum of the per-device counts, capped at
-  the target. Replicas merge by taking the maximum of each device's entry. As a result:
+  the target. An undo does not decrease that count. It increases a second grow-only undo entry for the same device,
+  and the shown total subtracts it. Replicas merge by taking the maximum of each device's count and of each device's undos. As a result:
   - receiving the same update twice, or an old one late, never adds rounds (the merge is idempotent);
   - taps made on the phone and the watch at the same time are both kept (the merge is commutative);
   - receiving a sync message never increments anything by itself.

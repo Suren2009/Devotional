@@ -22,6 +22,7 @@ object SessionMerger {
         require(local.sessionId == remote.sessionId) { "Cannot merge different sessions" }
 
         val counts = mergeCounts(local.deviceCounts, remote.deviceCounts)
+        val undos = mergeCounts(local.deviceUndos, remote.deviceUndos)
         // Session identity fields are immutable after creation; the local copy is authoritative.
         val (latitude, longitude) = SessionDetails.mergeLocation(
             local.latitude,
@@ -31,11 +32,13 @@ object SessionMerger {
         )
         val base = local.copy(
             deviceCounts = counts,
+            deviceUndos = undos,
             lastUpdatedTime = maxOf(local.lastUpdatedTime, remote.lastUpdatedTime),
             title = SessionDetails.mergeTitle(local.title, remote.title),
             latitude = latitude,
             longitude = longitude,
             pausedMillis = maxOf(local.pausedMillis, remote.pausedMillis),
+            mantra = SessionDetails.mergeMantra(local.mantra, remote.mantra),
         )
         val merged = resolveStatus(base, local, remote)
         return Result(
@@ -54,12 +57,21 @@ object SessionMerger {
     }
 
     private fun normalize(snapshot: SessionSnapshot): SessionSnapshot =
-        resolveStatus(snapshot.copy(deviceCounts = snapshot.deviceCounts.toSortedMap()), snapshot, snapshot)
+        resolveStatus(
+            snapshot.copy(
+                deviceCounts = snapshot.deviceCounts.toSortedMap(),
+                deviceUndos = snapshot.deviceUndos.toSortedMap(),
+            ),
+            snapshot,
+            snapshot,
+        )
 
     private fun resolveStatus(base: SessionSnapshot, a: SessionSnapshot, b: SessionSnapshot): SessionSnapshot {
-        val completedCount = CounterRules.mergedCount(base.targetCount, base.deviceCounts)
-
-        if (completedCount >= base.targetCount) {
+        val net = CounterRules.mergedCount(base.targetCount, base.deviceCounts, base.deviceUndos)
+        val gross = CounterRules.mergedCount(base.targetCount, base.deviceCounts)
+        val alreadyFinished = gross >= base.targetCount &&
+            (a.status == SessionStatus.COMPLETED || b.status == SessionStatus.COMPLETED)
+        if (net >= base.targetCount || alreadyFinished) {
             val completedEnds = listOfNotNull(
                 a.endTime.takeIf { a.status == SessionStatus.COMPLETED },
                 b.endTime.takeIf { b.status == SessionStatus.COMPLETED },

@@ -1,9 +1,13 @@
 package com.pradarshana.app.ui.home
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,71 +17,101 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.pradarshana.app.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.pradarshana.app.count.AutoCountHost
 import com.pradarshana.app.ui.appViewModel
 import com.pradarshana.app.ui.components.Mandala
+import com.pradarshana.core.data.CountFeedbackPreferences
+import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
+import com.pradarshana.core.model.CountPeriods
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionStatus
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.time.ZoneId
 
 class HomeViewModel(repository: SessionRepository) : ViewModel() {
     val ongoing: StateFlow<PradarshanaSession?> = repository.observeOngoingSession()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _totals = MutableStateFlow(CountPeriods.Totals(0, 0, 0))
+    val totals: StateFlow<CountPeriods.Totals> = _totals
+
+    init {
+        viewModelScope.launch {
+            combine(repository.observeHistory(), repository.observeOngoingSession()) { _, _ -> }
+                .collect {
+                    _totals.value = repository.periodCounts(System.currentTimeMillis(), ZoneId.systemDefault())
+                }
+        }
+    }
 }
 
 @Composable
 fun HomeRoute(
     onStart: () -> Unit,
+    onChant: () -> Unit,
     onResume: (String) -> Unit,
-    onHistory: () -> Unit,
     onSettings: () -> Unit,
     onAskBaba: () -> Unit,
     onStotras: () -> Unit,
 ) {
     val vm = appViewModel { HomeViewModel(it.repository) }
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
+    val totals by vm.totals.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val feedback = (context.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
+    val showTotals = if (feedback == null) false else CollectedTotals(feedback)
     AutoCountHost(ongoing)
     HomeScreen(
         ongoing = ongoing,
         onStart = onStart,
+        onChant = onChant,
         onResume = onResume,
-        onHistory = onHistory,
         onSettings = onSettings,
         onAskBaba = onAskBaba,
         onStotras = onStotras,
+        totals = if (showTotals) totals else null,
     )
+}
+
+@Composable
+private fun CollectedTotals(feedback: CountFeedbackPreferences): Boolean {
+    val enabled by feedback.showTotals.collectAsStateWithLifecycle()
+    return enabled
 }
 
 @Composable
@@ -85,10 +119,11 @@ fun HomeScreen(
     ongoing: PradarshanaSession?,
     onStart: () -> Unit,
     onResume: (String) -> Unit,
-    onHistory: () -> Unit,
+    onChant: () -> Unit = {},
     onSettings: () -> Unit = {},
     onAskBaba: () -> Unit = {},
     onStotras: () -> Unit = {},
+    totals: CountPeriods.Totals? = null,
 ) {
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -118,61 +153,20 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(32.dp))
 
-            if (ongoing != null) {
-                ResumeCard(ongoing, onResume = { onResume(ongoing.id) })
+            if (totals != null) {
+                TotalsCard(totals)
                 Spacer(Modifier.height(20.dp))
             }
 
-            Button(
-                onClick = onStart,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 60.dp)
-                    .testTag("start_button"),
-            ) {
-                Text("Start Pradarshana", style = MaterialTheme.typography.labelLarge)
-            }
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onHistory,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .testTag("history_button"),
-            ) {
-                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
-                Spacer(Modifier.size(8.dp))
-                Text("Pradarshana History", style = MaterialTheme.typography.labelLarge)
-            }
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onStotras,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .testTag("stotras_button"),
-            ) {
-                Text("Stotras", style = MaterialTheme.typography.labelLarge)
-            }
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onAskBaba,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .testTag("ask_baba_button"),
-            ) {
-                Text("Ask Baba", style = MaterialTheme.typography.labelLarge)
-            }
-            Spacer(Modifier.height(4.dp))
-            TextButton(
-                onClick = onSettings,
-                modifier = Modifier.testTag("settings_button"),
-            ) {
-                Icon(Icons.Filled.Settings, contentDescription = null)
-                Spacer(Modifier.size(8.dp))
-                Text("Settings")
-            }
+            HomeMenu(
+                ongoing = ongoing,
+                onStart = onStart,
+                onChant = onChant,
+                onResume = { id -> onResume(id) },
+                onStotras = onStotras,
+                onAskBaba = onAskBaba,
+                onSettings = onSettings,
+            )
             Spacer(Modifier.height(24.dp))
         }
         }
@@ -180,37 +174,126 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ResumeCard(session: PradarshanaSession, onResume: () -> Unit) {
-    val label = if (session.status == SessionStatus.PAUSED) "Paused session" else "Session in progress"
+private fun TotalsCard(totals: CountPeriods.Totals) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier
             .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription = "$label, ${session.completedCount} of ${session.targetCount} rounds"
-            },
+            .testTag("period_totals"),
     ) {
         Column(Modifier.padding(20.dp)) {
-            Text(label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text("Counted", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                "${session.completedCount} of ${session.targetCount} rounds · ${session.remainingCount} remaining",
+                "Today ${totals.today} · This week ${totals.week} · This month ${totals.month}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
-            Spacer(Modifier.height(12.dp))
-            LinearProgressIndicator(
-                progress = { session.progressFraction },
-                modifier = Modifier.fillMaxWidth(),
+        }
+    }
+}
+
+@Composable
+private fun HomeMenu(
+    ongoing: PradarshanaSession?,
+    onStart: () -> Unit,
+    onChant: () -> Unit,
+    onResume: (String) -> Unit,
+    onStotras: () -> Unit,
+    onAskBaba: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val tint = MaterialTheme.colorScheme.primary
+    val tiles = buildList {
+        if (ongoing != null) {
+            val paused = ongoing.status == SessionStatus.PAUSED
+            val label = if (paused) "Paused" else "Resume"
+            add(
+                MenuTileSpec(
+                    label = label,
+                    tag = "resume_button",
+                    description = "$label, ${ongoing.completedCount} of ${ongoing.targetCount} rounds, ${ongoing.remainingCount} remaining",
+                    onClick = { onResume(ongoing.id) },
+                    icon = {
+                        if (paused) PauseIcon(tint = tint)
+                        else Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
+                    },
+                ),
             )
-            Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                FilledTonalButton(onClick = onResume, modifier = Modifier.testTag("resume_button")) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Spacer(Modifier.size(6.dp))
-                    Text("Resume")
+        }
+        add(MenuTileSpec("Start", "start_button", onClick = onStart) { PradakshinaIcon(tint = tint) })
+        add(MenuTileSpec("Chanting", "chanting_button", onClick = onChant) { MalaIcon(tint = tint) })
+        add(MenuTileSpec("Stotras", "stotras_button", onClick = onStotras) { BookIcon(tint = tint) })
+        add(MenuTileSpec("Ask Baba", "ask_baba_button", onClick = onAskBaba) {
+            Image(
+                painter = painterResource(R.drawable.sai_baba_1),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(40.dp).clip(CircleShape),
+            )
+        })
+        add(MenuTileSpec("Settings", "settings_button", onClick = onSettings) {
+            Icon(Icons.Filled.Settings, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
+        })
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        tiles.chunked(3).forEach { row ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                row.forEach { tile ->
+                    MenuTile(
+                        label = tile.label,
+                        tag = tile.tag,
+                        description = tile.description,
+                        onClick = tile.onClick,
+                        icon = tile.icon,
+                    )
                 }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
+    }
+}
+
+private class MenuTileSpec(
+    val label: String,
+    val tag: String,
+    val onClick: () -> Unit,
+    val description: String = label,
+    val icon: @Composable () -> Unit,
+)
+
+@Composable
+private fun RowScope.MenuTile(
+    label: String,
+    tag: String,
+    onClick: () -> Unit,
+    description: String = label,
+    icon: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clip(shape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp, horizontal = 8.dp)
+            .semantics { contentDescription = description }
+            .testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        icon()
+        Spacer(Modifier.height(8.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.titleSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

@@ -1,6 +1,9 @@
 package com.pradarshana.app.ui
 
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.assertContentDescriptionEquals
@@ -17,10 +20,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.test.core.app.ApplicationProvider
 import com.pradarshana.app.ui.counter.CounterRoute
 import com.pradarshana.app.ui.counter.CounterScreen
+import com.pradarshana.core.model.MalaSide
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.data.presentation.CounterViewModel
 import com.pradarshana.app.ui.theme.PradarshanaTheme
 import com.pradarshana.core.data.SessionRepository
@@ -251,4 +257,181 @@ class CounterScreenTest {
         assertEquals(0, taps)
         assertTrue(keepOn)
     }
+
+    @Test
+    fun chantingMalaDragCountsOneNamePerDownwardDrag() {
+        var clicks = 0
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = chanting(),
+                    onIncrement = { clicks++ },
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    batterySaverEnabled = false,
+                    malaDrag = true,
+                )
+            }
+        }
+        compose.onNodeWithTag("increment_button").assertDoesNotExist()
+        compose.onNodeWithTag("mala_strip").assertExists()
+        compose.onNodeWithTag("mala_bead").assertExists()
+        compose.onNodeWithContentDescription("Drag down to count one name").assertExists()
+        assertTrue(compose.onNodeWithTag("mala_strip").fetchSemanticsNode().positionInRoot.x > 400f)
+
+        compose.onNodeWithTag("mala_strip").performTouchInput {
+            swipe(Offset(width / 2f, 24f), Offset(width / 2f, 48f), durationMillis = 80)
+        }
+        compose.waitForIdle()
+        assertEquals(0, clicks)
+
+        compose.onNodeWithTag("mala_strip").performTouchInput {
+            swipe(Offset(width / 2f, height - 16f), Offset(width / 2f, 16f), durationMillis = 300)
+        }
+        compose.waitForIdle()
+        assertEquals(0, clicks)
+
+        compose.onNodeWithTag("mala_strip").performTouchInput {
+            swipe(Offset(width / 2f, 12f), Offset(width / 2f, height - 12f), durationMillis = 400)
+        }
+        compose.waitForIdle()
+        assertEquals(1, clicks)
+
+        compose.onNodeWithTag("mala_strip").performTouchInput {
+            swipe(Offset(width / 2f, 12f), Offset(width / 2f, height - 12f), durationMillis = 400)
+        }
+        compose.waitForIdle()
+        assertEquals(2, clicks)
+    }
+
+    @Test
+    fun malaDragOnTheLeftDoesNotCountWhilePaused() {
+        var clicks = 0
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = chanting(status = SessionStatus.PAUSED),
+                    onIncrement = { clicks++ },
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    batterySaverEnabled = false,
+                    malaDrag = true,
+                    malaSide = MalaSide.LEFT,
+                )
+            }
+        }
+        assertTrue(compose.onNodeWithTag("mala_strip").fetchSemanticsNode().positionInRoot.x < 20f)
+        compose.onNodeWithTag("mala_strip").performTouchInput {
+            swipe(Offset(width / 2f, 12f), Offset(width / 2f, height - 12f), durationMillis = 400)
+        }
+        compose.waitForIdle()
+        assertEquals(0, clicks)
+    }
+
+    @Test
+    fun pradarshanaKeepsThePlusButtonWhenMalaDragIsOn() {
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = PradarshanaSession("s", 108, 0, 0, null, SessionStatus.ACTIVE, 0),
+                    onIncrement = {},
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    malaDrag = true,
+                )
+            }
+        }
+        compose.onNodeWithTag("increment_button").assertExists()
+        compose.onNodeWithTag("mala_strip").assertDoesNotExist()
+    }
+
+    @Test
+    fun darkenedChantingScreenStillCountsFromTheStrip() {
+        var clicks = 0
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = chanting(),
+                    onIncrement = { clicks++ },
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    malaDrag = true,
+                )
+            }
+        }
+        repeat(2) {
+            compose.onNodeWithTag("mala_strip").performTouchInput {
+                swipe(Offset(width / 2f, 12f), Offset(width / 2f, height - 12f), durationMillis = 400)
+            }
+            compose.waitForIdle()
+        }
+        assertEquals(2, clicks)
+        compose.onNodeWithTag("battery_saver").assertExists()
+        compose.onNodeWithTag("increment_button").assertDoesNotExist()
+        compose.onNodeWithTag("mala_strip").performTouchInput {
+            swipe(Offset(width / 2f, 12f), Offset(width / 2f, height - 12f), durationMillis = 400)
+        }
+        compose.waitForIdle()
+        assertEquals(3, clicks)
+        compose.onNodeWithTag("battery_saver").performTouchInput { doubleClick(Offset(8f, 8f)) }
+        compose.waitUntilReal { compose.onAllNodes(hasTestTag("pause_button")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("battery_saver").assertDoesNotExist()
+        compose.onNodeWithTag("increment_button").assertDoesNotExist()
+        compose.onNodeWithTag("mala_strip").assertExists()
+    }
+
+    @Test
+    fun rudrakshaRestsBelowTheMiddleThenAboveIt() {
+        var count by mutableIntStateOf(10)
+        compose.setContent {
+            PradarshanaTheme {
+                CounterScreen(
+                    session = chanting(count),
+                    onIncrement = {},
+                    onTogglePause = {},
+                    onEndSession = {},
+                    onBack = {},
+                    batterySaverEnabled = false,
+                    malaDrag = true,
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Name 10 of 108").assertExists()
+        assertTrue(beadCenter() > stripCenter())
+
+        count = 58
+        compose.waitForIdle()
+        val strip = compose.onNodeWithTag("mala_strip").fetchSemanticsNode()
+        assertTrue(beadCenter() < strip.positionInRoot.y + strip.size.height * 0.2f)
+
+        count = 100
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Name 100 of 108").assertExists()
+        assertTrue(beadCenter() < stripCenter())
+    }
+
+    private fun beadCenter(): Float {
+        val node = compose.onNodeWithTag("mala_bead").fetchSemanticsNode()
+        return node.positionInRoot.y + node.size.height / 2f
+    }
+
+    private fun stripCenter(): Float {
+        val node = compose.onNodeWithTag("mala_strip").fetchSemanticsNode()
+        return node.positionInRoot.y + node.size.height / 2f
+    }
+
+    private fun chanting(count: Int = 0, status: SessionStatus = SessionStatus.ACTIVE) = PradarshanaSession(
+        "s",
+        108,
+        count,
+        0,
+        null,
+        status,
+        0,
+        kind = SessionKind.CHANTING,
+    )
 }

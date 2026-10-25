@@ -20,6 +20,8 @@ data class PradarshanaSession(
     /** Time spent paused, already closed. An open pause is measured from [statusUpdatedAt]. */
     val pausedMillis: Long = 0,
     val statusUpdatedAt: Long = lastUpdatedTime,
+    /** Chosen for a chant. Blank when the session has no mantra. */
+    val mantra: String = "",
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
@@ -29,6 +31,7 @@ data class PradarshanaSession(
         }
         require(pausedMillis >= 0) { "pausedMillis must not be negative" }
         require(title == SessionDetails.normalizeTitle(title)) { "title must be normalized" }
+        require(mantra == SessionDetails.normalizeMantra(mantra)) { "mantra must be normalized" }
         val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
         require(lat == latitude && lng == longitude) { "location must be a valid pair or absent" }
     }

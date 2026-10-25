@@ -28,7 +28,7 @@ abstract class PradarshanaDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
     companion object {
-        const val VERSION = 5
+        const val VERSION = 6
         const val NAME = "pradarshana.db"
 
         /**
@@ -70,7 +70,16 @@ abstract class PradarshanaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        /** Older rows have no mantra and no undone counts. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN mantra TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE session_device_counts ADD COLUMN undos INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> =
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
         fun create(context: Context, name: String? = NAME): PradarshanaDatabase {
             val builder = if (name == null) {

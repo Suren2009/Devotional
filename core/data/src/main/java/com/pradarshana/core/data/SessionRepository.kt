@@ -8,6 +8,7 @@ import com.pradarshana.core.data.db.MetadataEntity
 import com.pradarshana.core.data.db.PradarshanaDatabase
 import com.pradarshana.core.data.db.SessionEntity
 import com.pradarshana.core.model.CommonCounts
+import com.pradarshana.core.model.CountPeriods
 import com.pradarshana.core.model.CounterRules
 import com.pradarshana.core.model.PradarshanaSession
 import com.pradarshana.core.model.SessionDetails
@@ -15,6 +16,7 @@ import com.pradarshana.core.model.SessionKind
 import com.pradarshana.core.model.SessionMerger
 import com.pradarshana.core.model.SessionSnapshot
 import com.pradarshana.core.model.SessionStatus
+import java.time.ZoneId
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -46,6 +48,13 @@ sealed interface IncrementResult {
     data class Rejected(val reason: Reason) : IncrementResult
 
     enum class Reason { NOT_FOUND, PAUSED, ALREADY_FINISHED, TARGET_REACHED }
+}
+
+sealed interface UndoResult {
+    data class Undone(val session: PradarshanaSession) : UndoResult
+    data class Rejected(val reason: Reason) : UndoResult
+
+    enum class Reason { NOT_FOUND, PAUSED, ALREADY_FINISHED, NOTHING_TO_UNDO }
 }
 
 data class RemoteApplyResult(
@@ -109,10 +118,12 @@ class SessionRepository(
         latitude: Double? = null,
         longitude: Double? = null,
         kind: SessionKind = SessionKind.PRADARSHANA,
+        mantra: String = "",
     ): StartResult {
         val validation = CounterRules.validateTarget(targetCount.toLong())
         if (validation !is CounterRules.TargetValidation.Valid) return StartResult.Invalid(validation)
         val cleanTitle = SessionDetails.normalizeTitle(title)
+        val cleanMantra = if (kind == SessionKind.CHANTING) SessionDetails.normalizeMantra(mantra) else ""
         val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
 
         val now = clock.now()
@@ -142,6 +153,7 @@ class SessionRepository(
                     latitude = lat,
                     longitude = lng,
                     kind = kind,
+                    mantra = cleanMantra,
                 ),
             )
             dao.upsertDeviceCounts(listOf(DeviceCountEntity(id, deviceId, 0)))
@@ -182,13 +194,15 @@ class SessionRepository(
                     return@write IncrementResult.Rejected(IncrementResult.Reason.TARGET_REACHED)
             }
             val now = clock.now()
-            val counts = dao.getDeviceCounts(sessionId).associate { it.deviceId to it.count }.toMutableMap()
+            val rows = dao.getDeviceCounts(sessionId)
+            val counts = rows.associate { it.deviceId to it.count }.toMutableMap()
+            val undos = rows.associate { it.deviceId to it.undos }
             val sequence = (counts[deviceId] ?: 0) + 1
             dao.insertOperation(CounterOperationEntity("$sessionId:$deviceId:$sequence", sessionId, deviceId, sequence, now))
             counts[deviceId] = sequence
-            dao.upsertDeviceCounts(listOf(DeviceCountEntity(sessionId, deviceId, sequence)))
+            dao.upsertDeviceCounts(listOf(DeviceCountEntity(sessionId, deviceId, sequence, undos[deviceId] ?: 0)))
 
-            val total = CounterRules.mergedCount(session.targetCount, counts)
+            val total = CounterRules.mergedCount(session.targetCount, counts, undos)
             val reachedTarget = total >= session.targetCount
             val updated = session.copy(
                 completedCount = total,
@@ -206,6 +220,84 @@ class SessionRepository(
         }
         if (result !is IncrementResult.Rejected) notifyChanged(sessionId)
         return result
+    }
+
+    /**
+     * Takes back one count made on this device. The device's own count is left in place and its undo
+     * entry grows, so a re-delivered snapshot cannot restore the undone count. A finished session stays finished.
+     */
+    suspend fun undo(sessionId: String): UndoResult {
+        val result = write {
+            val session = dao.getSession(sessionId)
+                ?: return@write UndoResult.Rejected(UndoResult.Reason.NOT_FOUND)
+            when {
+                session.status.isTerminal -> return@write UndoResult.Rejected(UndoResult.Reason.ALREADY_FINISHED)
+                session.status == SessionStatus.PAUSED -> return@write UndoResult.Rejected(UndoResult.Reason.PAUSED)
+            }
+            val rows = dao.getDeviceCounts(sessionId)
+            val mine = rows.find { it.deviceId == deviceId }
+            val myCount = mine?.count ?: 0
+            val myUndos = mine?.undos ?: 0
+            if (myCount <= myUndos || session.completedCount <= 0) {
+                return@write UndoResult.Rejected(UndoResult.Reason.NOTHING_TO_UNDO)
+            }
+            val now = clock.now()
+            val counts = rows.associate { it.deviceId to it.count }
+            val undos = rows.associate { it.deviceId to it.undos }.toMutableMap()
+            undos[deviceId] = myUndos + 1
+            dao.upsertDeviceCounts(listOf(DeviceCountEntity(sessionId, deviceId, myCount, myUndos + 1)))
+            val total = CounterRules.mergedCount(session.targetCount, counts, undos)
+            val updated = session.copy(
+                completedCount = total,
+                lastUpdatedTime = now,
+                localVersion = session.localVersion + 1,
+            )
+            dao.upsertSession(updated)
+            UndoResult.Undone(updated.toSession())
+        }
+        if (result is UndoResult.Undone) notifyChanged(sessionId)
+        return result
+    }
+
+    suspend fun periodCounts(now: Long, zone: ZoneId): CountPeriods.Totals {
+        val rows = dao.countedSessions().map { it.startTime to it.completedCount }
+        return CountPeriods.totals(rows, now, zone)
+    }
+
+    suspend fun exportHistory(): String {
+        val (sessions, deleted, clearedAt) = db.withTransaction {
+            val snapshots = dao.getAllSessions().map { entity -> entity.toSnapshot(dao.getDeviceCounts(entity.id)) }
+            Triple(snapshots, dao.deletedIds(), dao.getMetadata(KEY_HISTORY_CLEARED_AT))
+        }
+        return HistoryBackup.encode(sessions, deleted, clearedAt)
+    }
+
+    /** Merges a backup into this device. Returns how many sessions were kept, or -1 when the file cannot be read. */
+    suspend fun importHistory(json: String): Int {
+        val backup = HistoryBackup.decode(json) ?: return -1
+        val deleted = backup.deletedIds.toSet()
+        var kept = 0
+        for (snapshot in backup.sessions) {
+            if (snapshot.sessionId in deleted) continue
+            val applied = applyRemote(snapshot)
+            if (!applied.ignored) kept += 1
+        }
+        write {
+            val now = clock.now()
+            for (id in deleted) {
+                if (dao.getSession(id) == null && !dao.isDeleted(id)) {
+                    dao.insertDeleted(DeletedSessionEntity(id, now))
+                }
+            }
+            val cleared = backup.clearedAt
+            if (cleared != null) {
+                val current = dao.getMetadata(KEY_HISTORY_CLEARED_AT)
+                if (current == null || cleared > current) {
+                    dao.putMetadata(MetadataEntity(KEY_HISTORY_CLEARED_AT, cleared))
+                }
+            }
+        }
+        return kept
     }
 
     suspend fun pause(sessionId: String): Boolean = changeOngoingStatus(sessionId, SessionStatus.PAUSED)
@@ -292,9 +384,20 @@ class SessionRepository(
                         longitude = merged.longitude,
                         kind = merged.kind,
                         pausedMillis = merged.pausedMillis,
+                        mantra = merged.mantra,
                     ),
                 )
-                dao.upsertDeviceCounts(merged.deviceCounts.map { (device, count) -> DeviceCountEntity(merged.sessionId, device, count) })
+                val devices = merged.deviceCounts.keys + merged.deviceUndos.keys
+                dao.upsertDeviceCounts(
+                    devices.map { device ->
+                        DeviceCountEntity(
+                            merged.sessionId,
+                            device,
+                            merged.deviceCounts[device] ?: 0,
+                            merged.deviceUndos[device] ?: 0,
+                        )
+                    },
+                )
             }
             superseded += cancelSupersededSessions()
             val stored = dao.getSession(merged.sessionId)
@@ -386,6 +489,7 @@ internal fun SessionEntity.toSession() = PradarshanaSession(
     kind = kind,
     pausedMillis = pausedMillis,
     statusUpdatedAt = statusUpdatedAt,
+    mantra = mantra,
 )
 
 internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = SessionSnapshot(
@@ -404,4 +508,6 @@ internal fun SessionEntity.toSnapshot(counts: List<DeviceCountEntity>) = Session
     longitude = longitude,
     kind = kind,
     pausedMillis = pausedMillis,
+    deviceUndos = counts.filter { it.undos > 0 }.associate { it.deviceId to it.undos }.toSortedMap(),
+    mantra = mantra,
 )

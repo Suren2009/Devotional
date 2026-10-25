@@ -62,6 +62,17 @@ class CounterRulesTest {
     }
 
     @Test
+    fun `undos reduce only the device that made them`() {
+        val counts = mapOf("phone" to 6, "watch" to 4)
+        assertEquals(8, CounterRules.mergedCount(108, counts, mapOf("phone" to 2)))
+        assertEquals(4, CounterRules.mergedCount(108, counts, mapOf("phone" to 9)))
+        assertEquals(54, CounterRules.mergedCount(108, mapOf("phone" to 54)))
+        assertTrue(CounterRules.isHalfway(108, 54))
+        assertFalse(CounterRules.isHalfway(108, 53))
+        assertFalse(CounterRules.isHalfway(1, 0))
+    }
+
+    @Test
     fun `session invariants are enforced`() {
         assertThrows(IllegalArgumentException::class.java) { session(target = 0, completed = 0) }
         assertThrows(IllegalArgumentException::class.java) { session(target = 10, completed = -1) }

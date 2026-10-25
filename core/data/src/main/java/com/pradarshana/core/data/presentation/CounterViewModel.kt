@@ -23,7 +23,7 @@ sealed interface CounterUiState {
 }
 
 sealed interface CounterEvent {
-    data object RoundCounted : CounterEvent
+    data class RoundCounted(val completed: Int, val target: Int) : CounterEvent
 
     /** Emitted at most once per ViewModel, whether completion happened here or on the watch. */
     data object Completed : CounterEvent
@@ -48,11 +48,17 @@ class CounterViewModel(
     fun increment() {
         viewModelScope.launch {
             when (val result = repository.increment(sessionId)) {
-                is IncrementResult.Counted -> events.send(CounterEvent.RoundCounted)
+                is IncrementResult.Counted -> events.send(
+                    CounterEvent.RoundCounted(result.session.completedCount, result.session.targetCount),
+                )
                 is IncrementResult.Completed -> signalTerminalState(result.session)
                 is IncrementResult.Rejected -> Unit
             }
         }
+    }
+
+    fun undo() {
+        viewModelScope.launch { repository.undo(sessionId) }
     }
 
     fun togglePause() {

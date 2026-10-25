@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -96,6 +97,8 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth(0.62f),
                     )
                     Text("${session.completedCount}", style = MaterialTheme.typography.displayMedium)
                     Text("of ${session.targetCount}", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -109,6 +112,16 @@ fun SessionDetailScreen(session: PradarshanaSession?, onBack: () -> Unit) {
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
             )
+            if (session.mantra.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    session.mantra,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("detail_mantra"),
+                )
+            }
             Spacer(Modifier.height(8.dp))
             StatusChip(session.status)
             if (session.hasLocation) {

@@ -4,7 +4,9 @@ package com.pradarshana.core.model
  * Full replicated state of one session, exchanged between phone and watch.
  *
  * The counter is a grow-only counter (G-Counter CRDT): every device only ever increases its own
- * entry in [deviceCounts], and replicas merge by taking the per-device maximum. Each local tap is
+ * entry in [deviceCounts], and replicas merge by taking the per-device maximum. Undoing a count
+ * increases that device's entry in [deviceUndos] instead of decreasing [deviceCounts], so a later
+ * copy of the old counts cannot put the undone count back. Each local tap is
  * operation `sessionId:deviceId:sequence`, so re-delivered or duplicated snapshots can never add rounds twice
  * and concurrent taps on both devices are never lost.
  *
@@ -27,17 +29,27 @@ data class SessionSnapshot(
     val longitude: Double? = null,
     val kind: SessionKind = SessionKind.PRADARSHANA,
     val pausedMillis: Long = 0,
+    val deviceUndos: Map<String, Int> = emptyMap(),
+    val mantra: String = "",
 ) {
     init {
         require(targetCount > 0) { "targetCount must be greater than zero" }
         require(deviceCounts.values.all { it >= 0 }) { "device counts must not be negative" }
+        require(deviceUndos.values.all { it >= 0 }) { "device undos must not be negative" }
         require(pausedMillis >= 0) { "pausedMillis must not be negative" }
         require(title == SessionDetails.normalizeTitle(title)) { "title must be normalized" }
+        require(mantra == SessionDetails.normalizeMantra(mantra)) { "mantra must be normalized" }
         val (lat, lng) = SessionDetails.normalizeLocation(latitude, longitude)
         require(lat == latitude && lng == longitude) { "location must be a valid pair or absent" }
     }
 
-    val completedCount: Int get() = CounterRules.mergedCount(targetCount, deviceCounts)
+    val completedCount: Int
+        get() {
+            val net = CounterRules.mergedCount(targetCount, deviceCounts, deviceUndos)
+            if (status != SessionStatus.COMPLETED) return net
+            val gross = CounterRules.mergedCount(targetCount, deviceCounts)
+            return if (gross >= targetCount || net >= targetCount) targetCount else net
+        }
 
     val remainingCount: Int get() = CounterRules.remaining(targetCount, completedCount)
 
@@ -55,5 +67,6 @@ data class SessionSnapshot(
         kind = kind,
         pausedMillis = pausedMillis,
         statusUpdatedAt = statusUpdatedAt,
+        mantra = mantra,
     )
 }

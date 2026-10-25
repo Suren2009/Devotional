@@ -20,13 +20,17 @@ import com.pradarshana.app.ui.history.SessionDetailRoute
 import com.pradarshana.app.ui.home.HomeRoute
 import com.pradarshana.app.ui.settings.SettingsRoute
 import com.pradarshana.app.ui.start.StartRoute
+import com.pradarshana.app.ui.stotra.StotraEditorRoute
 import com.pradarshana.app.ui.stotra.StotraListRoute
 import com.pradarshana.app.ui.stotra.StotraReaderRoute
 import com.pradarshana.core.data.SessionRepository
+import com.pradarshana.core.model.SessionKind
 
 object Routes {
     const val HOME = "home"
-    const val START = "start"
+    const val START = "start?kind={kind}"
+
+    fun start(kind: SessionKind) = "start?kind=${kind.name}"
     const val COUNTER = "counter/{id}"
     const val COMPLETION = "completion/{id}"
     const val HISTORY = "history"
@@ -34,6 +38,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val ASK = "ask"
     const val STOTRAS = "stotras"
+    const val STOTRA_EDIT = "stotra-edit"
     const val STOTRA = "stotras/{id}"
 
     fun counter(id: String) = "counter/$id"
@@ -61,16 +66,26 @@ fun PradarshanaNavHost(
     NavHost(navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeRoute(
-                onStart = { navController.navigate(Routes.START) },
+                onStart = { navController.navigate(Routes.start(SessionKind.PRADARSHANA)) },
+                onChant = { navController.navigate(Routes.start(SessionKind.CHANTING)) },
                 onResume = { navController.navigate(Routes.counter(it)) },
-                onHistory = { navController.navigate(Routes.HISTORY) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
                 onAskBaba = { navController.navigate(Routes.ASK) },
                 onStotras = { navController.navigate(Routes.STOTRAS) },
             )
         }
-        composable(Routes.START) {
+        composable(
+            Routes.START,
+            arguments = listOf(
+                navArgument("kind") {
+                    type = NavType.StringType
+                    defaultValue = SessionKind.PRADARSHANA.name
+                },
+            ),
+        ) { entry ->
+            val kind = SessionKind.fromStored(entry.arguments?.getString("kind"))
             StartRoute(
+                kind = kind,
                 onBack = { navController.popBackStack() },
                 onStarted = { id ->
                     navController.navigate(Routes.counter(id)) {
@@ -97,8 +112,8 @@ fun PradarshanaNavHost(
             val id = entry.arguments?.getString("id").orEmpty()
             CompletionRoute(
                 sessionId = id,
-                onStartAnother = {
-                    navController.navigate(Routes.START) { popUpTo(Routes.HOME) }
+                onStartAnother = { kind ->
+                    navController.navigate(Routes.start(kind)) { popUpTo(Routes.HOME) }
                 },
                 onHistory = {
                     navController.navigate(Routes.HISTORY) { popUpTo(Routes.HOME) }
@@ -107,7 +122,10 @@ fun PradarshanaNavHost(
             )
         }
         composable(Routes.SETTINGS) {
-            SettingsRoute(onBack = { navController.popBackStack() })
+            SettingsRoute(
+                onBack = { navController.popBackStack() },
+                onHistory = { navController.navigate(Routes.HISTORY) },
+            )
         }
         composable(Routes.ASK) {
             AskBabaRoute(onBack = { navController.popBackStack() })
@@ -115,7 +133,18 @@ fun PradarshanaNavHost(
         composable(Routes.STOTRAS) {
             StotraListRoute(
                 onBack = { navController.popBackStack() },
-                onOpen = { navController.navigate(Routes.stotra(it.file)) },
+                onOpen = { navController.navigate(Routes.stotra(it)) },
+                onAdd = { navController.navigate(Routes.STOTRA_EDIT) },
+            )
+        }
+        composable(Routes.STOTRA_EDIT) {
+            StotraEditorRoute(
+                onBack = { navController.popBackStack() },
+                onSaved = { id ->
+                    navController.navigate(Routes.stotra(id)) {
+                        popUpTo(Routes.STOTRA_EDIT) { inclusive = true }
+                    }
+                },
             )
         }
         composable(Routes.STOTRA, arguments = idArg) { entry ->

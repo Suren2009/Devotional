@@ -301,4 +301,43 @@ class SessionRepositoryTest {
         assertEquals(13.0, repo.getSession(id)!!.latitude!!, 0.0)
         assertEquals(80.0, repo.getSession(id)!!.longitude!!, 0.0)
     }
+
+    @Test
+    fun undoRemovesOneLocalCountAndARepeatedSnapshotDoesNotPutItBack() = runTest {
+        val id = (repo.startSession(5, kind = SessionKind.CHANTING, mantra = "Om") as StartResult.Started).sessionId
+        assertEquals("Om", repo.getSession(id)!!.mantra)
+        repeat(3) { repo.increment(id) }
+        val undone = repo.undo(id)
+        assertTrue(undone is UndoResult.Undone)
+        assertEquals(2, repo.getSession(id)!!.completedCount)
+        val snapshot = repo.snapshot(id)!!.first
+        val watch = SessionRepository(db, "watch-1", clock)
+        val again = watch.applyRemote(snapshot)
+        assertEquals(2, watch.getSession(id)!!.completedCount)
+        watch.applyRemote(snapshot)
+        assertEquals(2, repo.getSession(id)!!.completedCount)
+        assertTrue(again.changedLocally || !again.ignored)
+        assertEquals(UndoResult.Rejected(UndoResult.Reason.NOTHING_TO_UNDO), SessionRepository(db, "watch-1", clock).undo(id))
+        repeat(3) { repo.increment(id) }
+        assertEquals(SessionStatus.COMPLETED, repo.getSession(id)!!.status)
+        assertEquals(UndoResult.Rejected(UndoResult.Reason.ALREADY_FINISHED), repo.undo(id))
+    }
+
+    @Test
+    fun historyFileRoundTripsAndDoesNotRestoreADeletedSession() = runTest {
+        val kept = start(4, title = "Kept")
+        repo.increment(kept)
+        val dropped = start(4, title = "Dropped")
+        repo.endSession(dropped)
+        repo.deleteSession(dropped)
+        val json = repo.exportHistory()
+        val freshDb = PradarshanaDatabase.create(context, name = null)
+        val fresh = SessionRepository(freshDb, "phone-2", clock)
+        val imported = fresh.importHistory(json)
+        assertTrue(imported >= 1)
+        assertEquals(1, fresh.getSession(kept)!!.completedCount)
+        assertEquals(null, fresh.getSession(dropped))
+        assertEquals(-1, fresh.importHistory("not json"))
+        freshDb.close()
+    }
 }

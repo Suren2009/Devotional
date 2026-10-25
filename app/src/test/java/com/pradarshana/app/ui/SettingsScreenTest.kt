@@ -48,14 +48,23 @@ class SettingsScreenTest {
     @Test
     fun choosingDarkReportsDark() {
         var chosen = ThemeMode.SYSTEM
+        var openedHistory = false
         compose.setContent {
             PradarshanaTheme {
-                SettingsScreen(mode = chosen, onMode = { chosen = it }, onBack = {})
+                SettingsScreen(
+                    mode = chosen,
+                    onMode = { chosen = it },
+                    onBack = {},
+                    onHistory = { openedHistory = true },
+                )
             }
         }
         compose.onNodeWithText("Light").assertExists()
         compose.onNodeWithText("Dark").assertExists()
         compose.onNodeWithText("System").assertExists()
+        compose.onNodeWithText("Pradarshana History").assertExists()
+        compose.onNodeWithTag("history_button").performClick()
+        assertTrue(openedHistory)
         compose.onNodeWithTag("theme_DARK").performClick()
         assertEquals(ThemeMode.DARK, chosen)
     }

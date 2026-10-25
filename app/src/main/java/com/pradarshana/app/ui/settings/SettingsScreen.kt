@@ -22,6 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -71,7 +73,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun SettingsRoute(onBack: () -> Unit) {
+fun SettingsRoute(onBack: () -> Unit, onHistory: () -> Unit) {
     val app = LocalContext.current.applicationContext as PradarshanaApp
     val mode by app.themeStore.mode.collectAsStateWithLifecycle()
     val vibrateOnCount by app.container.countFeedback.vibrateOnCount.collectAsStateWithLifecycle()
@@ -153,6 +155,7 @@ fun SettingsRoute(onBack: () -> Unit) {
         backupMessage = backupMessage,
         onExport = { exportLauncher.launch("pradarshana-history.json") },
         onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+        onHistory = onHistory,
         onBack = onBack,
     )
 }
@@ -192,6 +195,7 @@ fun SettingsScreen(
     backupMessage: String? = null,
     onExport: () -> Unit = {},
     onImport: () -> Unit = {},
+    onHistory: () -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -216,6 +220,24 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .clickable(onClick = onHistory)
+                    .padding(horizontal = 16.dp)
+                    .testTag("history_button"),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Pradarshana History",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                )
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(
                 "Theme",
                 style = MaterialTheme.typography.titleMedium,

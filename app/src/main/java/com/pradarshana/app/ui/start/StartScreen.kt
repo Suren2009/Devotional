@@ -60,7 +60,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.pradarshana.app.ui.appViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.pradarshana.core.data.CountFeedbackPreferences
 import com.pradarshana.core.data.PradarshanaContainerOwner
 import com.pradarshana.core.data.SessionRepository
@@ -87,6 +89,7 @@ import kotlinx.coroutines.launch
 class StartViewModel(
     private val repository: SessionRepository,
     private val locationCapture: LocationCapture = LocationCapture { null },
+    initialKind: SessionKind? = null,
 ) : ViewModel() {
     var title by mutableStateOf("")
         private set
@@ -105,6 +108,10 @@ class StartViewModel(
     private var starting = false
 
     init {
+        if (initialKind != null) {
+            kind = initialKind
+            kindEdited = true
+        }
         viewModelScope.launch {
             val latest = repository.latestSessionTitle()
             if (!titleEdited && title.isEmpty() && latest.isNotBlank()) title = latest
@@ -190,9 +197,17 @@ class StartViewModel(
 }
 
 @Composable
-fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
+fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit, kind: SessionKind) {
     val context = LocalContext.current
-    val vm = appViewModel { StartViewModel(it.repository, FusedLocationCapture(context.applicationContext)) }
+    val container = (context.applicationContext as PradarshanaContainerOwner).container
+    val vm = viewModel<StartViewModel>(
+        key = "start-${kind.name}",
+        factory = viewModelFactory {
+            initializer {
+                StartViewModel(container.repository, FusedLocationCapture(context.applicationContext), kind)
+            }
+        },
+    )
     val ongoing by vm.ongoing.collectAsStateWithLifecycle()
     val feedback = (context.applicationContext as? PradarshanaContainerOwner)?.container?.countFeedback
     val savedAutomatic = if (feedback == null) false else SavedAutomaticCount(feedback)
@@ -247,6 +262,7 @@ fun StartRoute(onBack: () -> Unit, onStarted: (String) -> Unit) {
             else permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         },
         onBack = onBack,
+        chooseKind = false,
     )
 }
 
@@ -299,6 +315,7 @@ fun StartScreen(
     temples: List<SavedTemple> = emptyList(),
     chosenTempleId: String? = null,
     onTempleChange: (String?) -> Unit = {},
+    chooseKind: Boolean = true,
 ) {
     val focusRequester = remember { FocusRequester() }
     val density = LocalDensity.current
@@ -309,7 +326,9 @@ fun StartScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Start Pradarshana") },
+                title = {
+                    Text(if (!chooseKind && kind == SessionKind.CHANTING) "Chanting" else "Start Pradarshana")
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -333,15 +352,17 @@ fun StartScreen(
                 style = MaterialTheme.typography.headlineSmall,
             )
             Spacer(Modifier.height(16.dp))
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                SessionKind.entries.forEachIndexed { index, option ->
-                    SegmentedButton(
-                        selected = kind == option,
-                        onClick = { onKindChange(option) },
-                        shape = SegmentedButtonDefaults.itemShape(index, SessionKind.entries.size),
-                        modifier = Modifier.testTag("kind_${option.name}"),
-                    ) {
-                        Text(option.label)
+            if (chooseKind) {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SessionKind.entries.forEachIndexed { index, option ->
+                        SegmentedButton(
+                            selected = kind == option,
+                            onClick = { onKindChange(option) },
+                            shape = SegmentedButtonDefaults.itemShape(index, SessionKind.entries.size),
+                            modifier = Modifier.testTag("kind_${option.name}"),
+                        ) {
+                            Text(option.label)
+                        }
                     }
                 }
             }

@@ -173,17 +173,32 @@ class StartAndHistoryScreenTest {
                     ongoing,
                     onStart = {},
                     onResume = { resumed = it },
-                    onHistory = {},
                     onSettings = { openedSettings = true },
                 )
             }
         }
         compose.onNodeWithText("Pradarshana").assertIsDisplayed()
-        compose.onNodeWithText("27 of 108 rounds · 81 remaining").assertExists()
+        compose.onNodeWithText("Resume").assertExists()
+        compose.onNodeWithTag("history_button").assertDoesNotExist()
+        compose.onNodeWithTag("chanting_button").assertExists()
         compose.onNodeWithTag("resume_button").performClick()
         assertEquals("s1", resumed)
         compose.onNodeWithTag("settings_button").performClick()
         assertTrue(openedSettings)
+    }
+
+    @Test
+    fun homeShowsAPausedSessionInTheMenu() {
+        var resumed: String? = null
+        val ongoing = PradarshanaSession("s1", 108, 27, 0, null, SessionStatus.PAUSED, 0)
+        compose.setContent {
+            PradarshanaTheme {
+                HomeScreen(ongoing, onStart = {}, onResume = { resumed = it })
+            }
+        }
+        compose.onNodeWithText("Paused").assertExists()
+        compose.onNodeWithTag("resume_button").performClick()
+        assertEquals("s1", resumed)
     }
 
     @Test

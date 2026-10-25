@@ -51,12 +51,20 @@ import com.pradarshana.app.ui.session.SessionViewModel
 import com.pradarshana.app.ui.theme.LocalTempleColors
 import com.pradarshana.core.model.DurationFormat
 import com.pradarshana.core.model.PradarshanaSession
+import com.pradarshana.core.model.SessionKind
 
 @Composable
-fun CompletionRoute(sessionId: String, onStartAnother: () -> Unit, onHistory: () -> Unit, onHome: () -> Unit) {
+fun CompletionRoute(
+    sessionId: String,
+    onStartAnother: (SessionKind) -> Unit,
+    onHistory: () -> Unit,
+    onHome: () -> Unit,
+) {
     val vm = appViewModel { SessionViewModel(it.repository, sessionId) }
     val session by vm.session.collectAsStateWithLifecycle()
-    session?.let { CompletionScreen(it, onStartAnother, onHistory, onHome) }
+    session?.let { current ->
+        CompletionScreen(current, onStartAnother = { onStartAnother(current.kind) }, onHistory, onHome)
+    }
 }
 
 @Composable

@@ -179,6 +179,8 @@ class StartAndHistoryScreenTest {
         }
         compose.onNodeWithText("Pradarshana").assertIsDisplayed()
         compose.onNodeWithText("Resume").assertExists()
+        compose.onNodeWithText("Chanting").assertIsDisplayed()
+        compose.onNodeWithText("Settings").assertIsDisplayed()
         compose.onNodeWithTag("history_button").assertDoesNotExist()
         compose.onNodeWithTag("chanting_button").assertExists()
         compose.onNodeWithTag("resume_button").performClick()

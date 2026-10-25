@@ -203,48 +203,67 @@ private fun HomeMenu(
     onSettings: () -> Unit,
 ) {
     val tint = MaterialTheme.colorScheme.primary
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.Top,
-    ) {
+    val tiles = buildList {
         if (ongoing != null) {
             val paused = ongoing.status == SessionStatus.PAUSED
             val label = if (paused) "Paused" else "Resume"
-            MenuTile(
-                label = label,
-                tag = "resume_button",
-                description = "$label, ${ongoing.completedCount} of ${ongoing.targetCount} rounds, ${ongoing.remainingCount} remaining",
-                onClick = { onResume(ongoing.id) },
-            ) {
-                if (paused) PauseIcon(tint = tint)
-                else Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
-            }
+            add(
+                MenuTileSpec(
+                    label = label,
+                    tag = "resume_button",
+                    description = "$label, ${ongoing.completedCount} of ${ongoing.targetCount} rounds, ${ongoing.remainingCount} remaining",
+                    onClick = { onResume(ongoing.id) },
+                    icon = {
+                        if (paused) PauseIcon(tint = tint)
+                        else Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
+                    },
+                ),
+            )
         }
-        MenuTile(label = "Start", tag = "start_button", onClick = onStart) {
-            PradakshinaIcon(tint = tint)
-        }
-        MenuTile(label = "Chanting", tag = "chanting_button", onClick = onChant) {
-            MalaIcon(tint = tint)
-        }
-        MenuTile(label = "Stotras", tag = "stotras_button", onClick = onStotras) {
-            BookIcon(tint = tint)
-        }
-        MenuTile(label = "Ask Baba", tag = "ask_baba_button", onClick = onAskBaba) {
+        add(MenuTileSpec("Start", "start_button", onClick = onStart) { PradakshinaIcon(tint = tint) })
+        add(MenuTileSpec("Chanting", "chanting_button", onClick = onChant) { MalaIcon(tint = tint) })
+        add(MenuTileSpec("Stotras", "stotras_button", onClick = onStotras) { BookIcon(tint = tint) })
+        add(MenuTileSpec("Ask Baba", "ask_baba_button", onClick = onAskBaba) {
             Image(
                 painter = painterResource(R.drawable.sai_baba_1),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.size(40.dp).clip(CircleShape),
             )
-        }
-        MenuTile(label = "Settings", tag = "settings_button", onClick = onSettings) {
+        })
+        add(MenuTileSpec("Settings", "settings_button", onClick = onSettings) {
             Icon(Icons.Filled.Settings, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
+        })
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        tiles.chunked(3).forEach { row ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                row.forEach { tile ->
+                    MenuTile(
+                        label = tile.label,
+                        tag = tile.tag,
+                        description = tile.description,
+                        onClick = tile.onClick,
+                        icon = tile.icon,
+                    )
+                }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
         }
     }
 }
+
+private class MenuTileSpec(
+    val label: String,
+    val tag: String,
+    val onClick: () -> Unit,
+    val description: String = label,
+    val icon: @Composable () -> Unit,
+)
 
 @Composable
 private fun RowScope.MenuTile(
@@ -258,22 +277,22 @@ private fun RowScope.MenuTile(
     Column(
         modifier = Modifier
             .weight(1f)
-            .padding(horizontal = 3.dp)
             .clip(shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 2.dp)
+            .padding(vertical = 16.dp, horizontal = 8.dp)
             .semantics { contentDescription = description }
             .testTag(tag),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         icon()
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.titleSmall,
             textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = 1,
+            softWrap = false,
             overflow = TextOverflow.Ellipsis,
         )
     }

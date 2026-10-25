@@ -7,7 +7,7 @@ of completed sessions. No account, internet connection, ads or runtime permissio
 ## Features
 
 **Phone**
-- Home is one row: **Start**, **Chanting**, **Stotras**, **Ask Baba**, and **Settings**. A session that is still going is a **Paused** or **Resume** item on that same row. **Pradarshana History** opens from Settings. Settings can also show how many counts were made today, this week and this month. That line stays hidden until it is turned on.
+- Home is a grid of three items per row: **Start**, **Chanting**, **Stotras**, **Ask Baba**, and **Settings**. A session that is still going is a **Paused** or **Resume** item in that grid. **Pradarshana History** opens from Settings. Settings can also show how many counts were made today, this week and this month. That line stays hidden until it is turned on.
 - **Start** opens a walk around the temple. **Chanting** opens a chant of names. A walk offers **Manual** or **Automatic**. Manual is the usual **+** screen. Automatic counts a round when you return to the start. A chant offers **Plus** or **Drag down**. Drag down counts one name when you slide down a strip on the left or right edge and lift.
 - Target entry with validation (must be a whole number from 1 to 100,000). A walk asks for **Target rounds**. A chant asks for **No. of times chanting**. Common counts start with the latest target, then counts used more than once, then 3, 9, 18, 54 and 108. Each number appears once. Those counts stay along the top of the keyboard while a number is being entered.
 - An optional title, filled in with the title of the latest session. A session with no title is shown as **Untitled**. A chant can also name a mantra by typing it. It is shown on the counting screen and in the session details. Leave it blank to hide it.
